@@ -1,18 +1,18 @@
-   ---
-   name: Tarea
-   about: Tarea del backlog
-   title: "[ID] · "
-   labels: ''
-   assignees: ''
-   ---
+---
+name: Tarea
+about: Tarea del backlog
+title: "[ID] · "
+labels: ''
+assignees: ''
+---
 
-   ## Objetivo
+## Objetivo
 
-   ## Criterios de aceptación
-   - [ ] 
+## Criterios de aceptación
+- [ ] 
 
-   ## Entregable
+## Entregable
 
-   ## Depende de
+## Depende de
 
-   ## Notas
+## Notas

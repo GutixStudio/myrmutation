@@ -109,6 +109,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1639659197341445827}
+  - component: {fileID: 3177295665664023184}
   m_Layer: 0
   m_Name: Entrance
   m_TagString: Untagged
@@ -131,6 +132,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 3592933460260497362}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3177295665664023184
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4549003268702957088}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6327d6e49174ea24d81b4650de8a7718, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  links: []
 --- !u!1 &9177142441202545608
 GameObject:
   m_ObjectHideFlags: 0
@@ -208,7 +222,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 2
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0.17254902, g: 0.11372549, b: 0.09803922, a: 0.5882353}
+  m_Color: {r: 0.23529412, g: 0.15686275, b: 0.011764706, a: 0.5882353}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0

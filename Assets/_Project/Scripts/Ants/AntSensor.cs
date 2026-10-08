@@ -11,17 +11,12 @@ namespace Myrmutation.Ants
     /// Preguntas (tarjeta B1):  TieneHambre → IsHungry · EstaCansada → IsTired ·
     ///                          EstaEnObjetivo → IsAtTarget · sala más cercana de un tipo → NearestRoom
     ///
-    /// Hambre y energía se leen de un componente IAntNeeds del mismo objeto (AntNeeds).
-    /// Si no hay ninguno, la hormiga nunca tiene hambre ni está cansada.
+    /// Hambre y energía se leen de un componente IAntNeeds del mismo objeto (AntNeeds), que es
+    /// quien fija los umbrales. Si no hay ninguno, la hormiga nunca tiene hambre ni está cansada.
     /// </summary>
     [RequireComponent(typeof(Ant))]
     public class AntSensor : MonoBehaviour
     {
-        [Header("Umbrales")]
-        [Tooltip("Hambre (0-1) a partir de la cual IsHungry = true")]
-        [Range(0f, 1f)] [SerializeField] private float hungryThreshold = 0.6f;
-        [Tooltip("Energía (0-1) por debajo de la cual IsTired = true")]
-        [Range(0f, 1f)] [SerializeField] private float tiredThreshold = 0.3f;
         [Tooltip("Distancia a la que se considera que está en un punto")]
         [SerializeField] private float targetTolerance = 0.15f;
 
@@ -51,10 +46,22 @@ namespace Myrmutation.Ants
         public float Energy01 => Needs != null ? Needs.Energy01 : 1f;
 
         /// <summary>TieneHambre.</summary>
-        public bool IsHungry => Hunger01 >= hungryThreshold;
+        public bool IsHungry => Needs != null && Needs.IsHungry;
 
         /// <summary>EstaCansada.</summary>
-        public bool IsTired => Energy01 <= tiredThreshold;
+        public bool IsTired => Needs != null && Needs.IsTired;
+
+        /// <summary>Ha descansado lo suficiente para volver al trabajo.</summary>
+        public bool IsRested => Needs == null || Needs.IsRested;
+
+        /// <summary>Llegó a energía 0 y aún no se ha recuperado del todo.</summary>
+        public bool IsExhausted => Needs != null && Needs.IsExhausted;
+
+        /// <summary>Puede trabajar (false mientras está agotada).</summary>
+        public bool CanWork => Needs == null || Needs.CanWork;
+
+        /// <summary>Está descansando ahora mismo.</summary>
+        public bool IsResting => Needs != null && Needs.IsResting;
 
         // ================= POSICIÓN =================
 

@@ -851,6 +851,7 @@ GameObject:
   - component: {fileID: 6758865409843928790}
   - component: {fileID: 2599079455344501954}
   - component: {fileID: 4693328292074627435}
+  - component: {fileID: 8206043701161156377}
   m_Layer: 0
   m_Name: Ant
   m_TagString: Untagged
@@ -912,9 +913,12 @@ MonoBehaviour:
   fallbackSpeed: 1.5
   eatDuration: 1.5
   defaultRation: 1
-  visual: {fileID: 0}
+  visual: {fileID: 257391098690894775}
   bobAmplitude: 0.04
   bobFrequency: 10
+  alignToPath: 1
+  turnSpeed: 540
+  levelWhenStopped: 1
 --- !u!114 &4693328292074627435
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -927,6 +931,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6499ad94ae8a7e64892d88cd1b6d7709, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  hungryThreshold: 0.6
-  tiredThreshold: 0.3
   targetTolerance: 0.15
+--- !u!114 &8206043701161156377
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8864650367434385086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46b923d6705b0f049a847a76c1fff5ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  startHunger: 0
+  startEnergy: 1
+  restRecoveryPerSecond: 0.1
+  tiredThreshold: 0.25
+  restedThreshold: 0.95
+  hungryThreshold: 0.6
+  starvationDelay: 10
+  mealRelief: 1

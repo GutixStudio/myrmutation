@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d2477d05c53ed242beb4cafe4dde34f, type: 3}
+  m_Name: Flaw_Glotona
+  m_EditorClassIdentifier: 
+  id: glotona
+  displayName: Glotona
+  description: "Nunca tiene suficiente: el hambre sube el doble de r\xE1pido y come
+    doble raci\xF3n."
+  origin: "Mutaci\xF3n fallida"
+  icon: {fileID: -2413806693520163455, guid: eef381840531c714282c333330c32e1b, type: 3}
+  isFlaw: 1
+  slot: 0
+  bodyPart: {fileID: 0}
+  tint: {r: 0.56078434, g: 0.7490196, b: 0.3529412, a: 1}
+  modifiers:
+  - stat: 2
+    additive: 0
+    percent: 100
+  behaviorTag: Glotona

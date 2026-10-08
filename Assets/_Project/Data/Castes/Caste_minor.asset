@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 87cec6c8fae9e324caaedd1e95bcaa22, type: 3}
+  m_Name: Caste_minor
+  m_EditorClassIdentifier: 
+  caste: 0
+  displayName: Menor
+  bodyScale: 1
+  headScale: 1
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  foodCostToRaise: 5
+  baseStats:
+    strength: 1
+    speed: 1.5
+    hungerRate: 0.02
+    energyRate: 0.015
+    carryCapacity: 1
+    workRate: 1
+  affinities:
+  - room: 3
+    bonusPercent: 50

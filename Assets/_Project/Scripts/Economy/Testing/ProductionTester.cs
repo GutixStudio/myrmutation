@@ -76,7 +76,7 @@ namespace Myrmutation.Economy.Testing
             var rm = ResourceManager.Instance;
             var cp = ColonyProduction.Instance;
 
-            GUILayout.BeginArea(new Rect(10, 10, 360, 600), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(Screen.width - 370, 10, 360, 600), GUI.skin.box);
             GUILayout.Label("<b>D1 · Producción</b>", new GUIStyle(GUI.skin.label) { richText = true });
 
             if (rm == null) GUILayout.Label("⚠ No hay ResourceManager en la escena");

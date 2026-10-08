@@ -32,10 +32,18 @@ namespace Myrmutation.Ants
         [SerializeField] private int defaultRation = 1;
 
         [Header("Visual")]
-        [Tooltip("Hijo 'Visual' del prefab: se voltea según la dirección y se balancea al trabajar/comer")]
+        [Tooltip("Hijo Visual del prefab: se voltea y gira según la dirección y se balancea al trabajar/comer")]
         [SerializeField] private Transform visual;
         [SerializeField] private float bobAmplitude = 0.04f;
         [SerializeField] private float bobFrequency = 10f;
+
+        [Header("Orientación")]
+        [Tooltip("Gira el cuerpo para ir paralela al túnel (en cuestas y túneles verticales)")]
+        [SerializeField] private bool alignToPath = true;
+        [Tooltip("Grados por segundo al girar (más alto = giro más brusco)")]
+        [SerializeField] private float turnSpeed = 540f;
+        [Tooltip("Al pararse vuelve a ponerse horizontal (suelo de las salas)")]
+        [SerializeField] private bool levelWhenStopped = true;
 
         /// <summary>Acción en curso.</summary>
         public AntAction Current { get; private set; } = AntAction.Idle;
@@ -67,6 +75,7 @@ namespace Myrmutation.Ants
         private int pendingRation;
         private Vector3 visualBasePos;
         private float bobTime;
+        private float targetAngle;      // giro (grados) que busca el Visual
 
         private void Awake()
         {
@@ -159,13 +168,14 @@ namespace Myrmutation.Ants
                 case AntAction.Working: UpdateWork(); break;
                 case AntAction.Eating: UpdateEat(); break;
             }
+            UpdateRotation();
         }
 
         private void UpdateMove()
         {
             Vector3 target = path[pathIndex];
             Vector3 pos = transform.position;
-            Face(target.x - pos.x);
+            Face(target - pos);
 
             transform.position = Vector3.MoveTowards(pos, target, Speed * Time.deltaTime);
 
@@ -223,16 +233,48 @@ namespace Myrmutation.Ants
             if (visual != null) visual.localPosition = visualBasePos;
         }
 
-        private void Face(float dx)
+        /// <summary>
+        /// Orienta a la hormiga hacia donde va: la voltea a izquierda/derecha y fija el giro
+        /// para que el cuerpo vaya paralelo al tramo de túnel (las paredes son paralelas al tramo).
+        /// En tramos verticales mantiene el lado al que miraba.
+        /// </summary>
+        private void Face(Vector3 dir)
         {
-            if (Mathf.Abs(dx) < 0.001f) return;
-            bool right = dx > 0f;
-            if (right == FacingRight) return;
-            FacingRight = right;
+            if (dir.sqrMagnitude < 0.000001f) return;
+
+            if (Mathf.Abs(dir.x) > 0.001f)
+            {
+                bool right = dir.x > 0f;
+                if (right != FacingRight)
+                {
+                    FacingRight = right;
+                    if (visual != null)
+                    {
+                        var s = visual.localScale;
+                        s.x = Mathf.Abs(s.x) * (right ? 1f : -1f);
+                        visual.localScale = s;
+                        // Al voltear, el mismo giro apuntaría al revés: se refleja para que no dé un salto.
+                        visual.localRotation = Quaternion.Euler(0f, 0f, -visual.localEulerAngles.z);
+                    }
+                }
+            }
+
+            if (!alignToPath) { targetAngle = 0f; return; }
+            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;   // 0 = derecha, 90 = arriba
+            // Volteada (mirando a la izquierda) su "delante" es -X: se resta media vuelta.
+            targetAngle = Mathf.DeltaAngle(0f, FacingRight ? angle : angle - 180f);
+        }
+
+        /// <summary>Gira el Visual poco a poco hacia targetAngle (horizontal si está parada).</summary>
+        private void UpdateRotation()
+        {
             if (visual == null) return;
-            var s = visual.localScale;
-            s.x = Mathf.Abs(s.x) * (right ? 1f : -1f);
-            visual.localScale = s;
+            if (Current != AntAction.Moving && levelWhenStopped) targetAngle = 0f;
+
+            float z = visual.localEulerAngles.z;
+            float next = Mathf.MoveTowardsAngle(z, targetAngle, turnSpeed * Time.deltaTime);
+            if (Mathf.Approximately(Mathf.DeltaAngle(z, next), 0f)) return;
+            visual.localRotation = Quaternion.Euler(0f, 0f, next);
         }
 
         private void Bob(float speedFactor)

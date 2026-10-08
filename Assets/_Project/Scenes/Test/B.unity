@@ -119,39 +119,17 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &168452641 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8864650367434385086, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
-  m_PrefabInstance: {fileID: 5221341188181009125}
-  m_PrefabAsset: {fileID: 0}
 --- !u!114 &168452642 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2599079455344501954, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
   m_PrefabInstance: {fileID: 5221341188181009125}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 168452641}
+  m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4ca177cdfcde5eb4a99edd5dda495cd6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &168452643
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 168452641}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3ee6d72ae6e116143aa28787603a4164, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  hunger: 0
-  energy: 1
-  drainOverTime: 0
-  drainPerSecond: 0.05
-  hungerPerRation: 0.5
 --- !u!1001 &364157181
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -955,10 +933,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 8864650367434385086, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 168452643}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

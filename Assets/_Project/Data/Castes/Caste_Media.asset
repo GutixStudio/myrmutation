@@ -10,23 +10,21 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 87cec6c8fae9e324caaedd1e95bcaa22, type: 3}
-  m_Name: Caste_minor
+  m_Name: Caste_Media
   m_EditorClassIdentifier: 
-  caste: 0
-  displayName: Menor
-  bodyScale: 0.85
-  headScale: 0.9
-  tint: {r: 1, g: 0.92, b: 0.8, a: 1}
-  foodCostToRaise: 3
+  caste: 1
+  displayName: Media
+  bodyScale: 1
+  headScale: 1
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  foodCostToRaise: 6
   baseStats:
-    strength: 0.7
-    speed: 1.6
-    hungerRate: 0.015
+    strength: 1
+    speed: 1.5
+    hungerRate: 0.02
     energyRate: 0.015
-    carryCapacity: 1
+    carryCapacity: 1.5
     workRate: 1
   affinities:
-  - room: 3
-    bonusPercent: 50
-  - room: 1
-    bonusPercent: 50
+  - room: 2
+    bonusPercent: 25

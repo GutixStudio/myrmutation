@@ -77,7 +77,35 @@ El cerebro y las necesidades leen `GeneData.behaviorTag`. Ahora mismo se usa **`
 
 ---
 
-## 5. Pendiente para más adelante
+## 5. Selección y panel de hormiga (B4)
+
+**Scripts:** `Scripts/Ants/UI/` · **Prefab:** `Prefabs/AntsP/AntPanel.prefab`
+
+- Tocar o hacer clic cerca de una hormiga la selecciona (sin colliders: se busca la más cercana al punto). Tocar en otro sitio la deselecciona.
+- La hormiga seleccionada está en `AntSelection.Current`.
+- **Evento `AntSelected`:** se publica al seleccionar, y también al deseleccionar con **`Ant = null`**. Si os suscribís, comprobad siempre si es `null`:
+  ```csharp
+  void OnAntSelected(AntSelected e) { if (e.Ant == null) { /* ninguna seleccionada */ } }
+  ```
+- El panel muestra nombre, casta, estado, genes (el `icon` de cada `GeneData`; si no tiene, un cuadro de su `tint`) y barras de hambre y energía.
+- **Asignar a sala:** lista con el rendimiento de la hormiga en cada sala (`ColonyProduction.GetEfficiency`) y su ocupación (`workerCapacity`). Con la lista abierta, también se puede tocar la sala en el mapa. La Sala Real no aparece y la reina no se puede asignar.
+
+### C (y cualquiera) · Añadir un botón al panel (p. ej. "Devorar")
+No hace falta tocar `AntPanelUI`. Desde vuestro script:
+```csharp
+void OnEnable()  => AntPanelAction.Register("Devorar", ant => !ant.IsQueen, ant => Devorar(ant));
+void OnDisable() => AntPanelAction.Unregister("Devorar");
+```
+- El segundo parámetro decide cuándo se ve el botón (se comprueba dos veces por segundo).
+- El tercero es lo que hace al pulsarlo. Recordad suspender el cerebro si os lleváis la hormiga (ver §4).
+- Si la hormiga muere, el panel se cierra solo.
+
+### A · Aviso
+`BuildManager` abre su menú al tocar una **zona libre**. Si hay una hormiga encima de una zona libre y se toca, se abren el menú y el panel a la vez. Es poco habitual (las hormigas suelen estar en salas construidas o túneles).
+
+---
+
+## 6. Pendiente para más adelante
 
 - **Transporte (carga):** al andar cargada, una hormiga debe gastar más energía según el peso. Está marcado con `TODO (TRANSPORTE)` en `AntNeeds.EnergyDrainFactor()`, con la fórmula propuesta. Quien haga el transporte debe exponer la carga actual y hablarlo con B.
 - **Dormitorio (beta):** descansar ahí será ×2. Falta un `RoomType` nuevo en `Core/Enums.cs` (A1). El hueco está preparado en `AntNeeds.RestMultiplier()`.

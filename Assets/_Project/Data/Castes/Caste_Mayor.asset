@@ -10,23 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 87cec6c8fae9e324caaedd1e95bcaa22, type: 3}
-  m_Name: Caste_minor
+  m_Name: Caste_Mayor
   m_EditorClassIdentifier: 
-  caste: 0
-  displayName: Menor
-  bodyScale: 0.85
-  headScale: 0.9
-  tint: {r: 1, g: 0.92, b: 0.8, a: 1}
-  foodCostToRaise: 3
+  caste: 2
+  displayName: Mayor
+  bodyScale: 1.25
+  headScale: 1.4
+  tint: {r: 0.8, g: 0.6, b: 0.5, a: 1}
+  foodCostToRaise: 10
   baseStats:
-    strength: 0.7
-    speed: 1.6
-    hungerRate: 0.015
-    energyRate: 0.015
-    carryCapacity: 1
+    strength: 2
+    speed: 1.1
+    hungerRate: 0.035
+    energyRate: 0.02
+    carryCapacity: 2
     workRate: 1
   affinities:
   - room: 3
-    bonusPercent: 50
+    bonusPercent: -50
   - room: 1
-    bonusPercent: 50
+    bonusPercent: -50

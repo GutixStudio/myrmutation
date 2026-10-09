@@ -83,6 +83,20 @@ namespace Myrmutation.Ants
         /// <summary>Está en el punto de trabajo de esta sala.</summary>
         public bool IsAtRoom(Room room) => room != null && IsAt(room.WorkPosition);
 
+        /// <summary>
+        /// Punto del túnel más cercano (donde descansa si no tiene sala).
+        /// Se obtiene pidiendo al navegador un camino de aquí a aquí: su primer punto es el nodo
+        /// más cercano. Así solo usa INavigator, como pide A. Sin navegador: su propia posición.
+        /// </summary>
+        public Vector3 NearestTunnelPoint()
+        {
+            var nav = Navigation.Current;
+            Vector3 here = transform.position;
+            if (nav != null && nav.TryGetPath(here, here, pathBuffer) && pathBuffer.Count > 0)
+                return pathBuffer[0];
+            return here;
+        }
+
         // ================= SALAS =================
 
         /// <summary>

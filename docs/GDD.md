@@ -229,8 +229,8 @@ Un único esquema **táctil y de ratón** para PC, tablet y móvil.
 |---|---|---|
 | Mover la cámara | Arrastrar | Arrastrar con un dedo |
 | Zoom | Rueda | Pellizcar |
-| Seleccionar hormiga / sala | Clic | Tocar |
-| Construir | Clic en zona vacía → elegir sala | Tocar zona vacía → elegir sala |
+| Seleccionar hormiga / sala | Clic Izquierdo | Tocar |
+| Construir | Clic Izq en zona vacía → elegir sala | Tocar zona vacía → elegir sala |
 | Asignar hormiga a sala | Botón en el panel de la hormiga | Igual |
 | Devorar | Botón *Devorar* en el panel → elegir víctima | Igual |
 | Pausa y velocidad | Botones del HUD | Igual |

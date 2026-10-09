@@ -15,11 +15,18 @@ namespace Myrmutation.Ants.Testing
     ///
     /// Con el cerebro suspendido (o sin cerebro), órdenes manuales como en B1/B3:
     ///   Clic en una zona → MoverA · T trabajar · C comer · P parar · H ir a comer · R descansar
+    ///
+    /// Si la escena tiene AntSelection (panel de hormiga, B4), los clics los gestiona el panel
+    /// y aquí solo funcionan las teclas.
     /// </summary>
     public class AntTestController : MonoBehaviour
     {
         [SerializeField] private AntActuator ant;
         [SerializeField] private float workSeconds = 3f;
+        [Tooltip("Añade al panel de hormiga (B4) un botón 'Matar (prueba)' para probar el hueco de acciones")]
+        [SerializeField] private bool registerTestAction = true;
+
+        private const string TestActionLabel = "Matar (prueba)";
 
         private Ant antCore;
         private AntSensor sensor;
@@ -45,6 +52,8 @@ namespace Myrmutation.Ants.Testing
             EventBus.Subscribe<AntDied>(OnAntDied);
             if (ant != null) { ant.ActionFinished += OnActionFinished; ant.Ate += OnAte; }
             if (brain != null) brain.StateChanged += OnBrainChanged;
+            if (registerTestAction)
+                AntPanelAction.Register(TestActionLabel, a => !a.IsQueen, a => a.Kill(DeathCause.Other));
         }
 
         private void OnDisable()
@@ -53,6 +62,7 @@ namespace Myrmutation.Ants.Testing
             EventBus.Unsubscribe<AntDied>(OnAntDied);
             if (ant != null) { ant.ActionFinished -= OnActionFinished; ant.Ate -= OnAte; }
             if (brain != null) brain.StateChanged -= OnBrainChanged;
+            if (registerTestAction) AntPanelAction.Unregister(TestActionLabel);
         }
 
         // ================= ENTRADA =================
@@ -60,6 +70,8 @@ namespace Myrmutation.Ants.Testing
         private void OnTap(Vector2 world)
         {
             if (ant == null) return;
+            // Si hay selección de hormigas (B4) en la escena, los toques los gestiona el panel.
+            if (AntSelection.Instance != null) return;
             var zone = BuildZone.At(world);
             if (zone == null) return;
 

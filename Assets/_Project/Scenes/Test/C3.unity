@@ -119,6 +119,82 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &3480812
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3480814}
+  - component: {fileID: 3480813}
+  m_Layer: 0
+  m_Name: Nursery
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!114 &3480813
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3480812}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6b6b583df84401a40be36408a2e5e622, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  antPrefab: {fileID: 6758865409843928790, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
+  castes:
+  - {fileID: 11400000, guid: 11eae32c8fe2674429718bec58acb175, type: 2}
+  - {fileID: 11400000, guid: 343fa7cb311708d48ac88cb9fe1754dc, type: 2}
+  capacity: 6
+  eggSeconds: 2
+  larvaSeconds: 2
+  pupaSeconds: 2
+  speedBonusPerWorker: 0.25
+  autoFeedAfterSeconds: 1
+  autoFeedCaste: {fileID: 11400000, guid: 343fa7cb311708d48ac88cb9fe1754dc, type: 2}
+  spawnPoint: {fileID: 0}
+  spawnSpread: 0.5
+  addGenomeIfMissing: 1
+  names:
+  - Mordisco
+  - Migaja
+  - Tragona
+  - Bocado
+  - Hebra
+  - Pizca
+  - Grano
+  - Zampa
+  - Chispa
+  - Brizna
+  - Ramita
+  - Moteada
+  - Pelusa
+  - "Reba\xF1o"
+  - Lenteja
+  - Almendra
+  logEvents: 0
+--- !u!4 &3480814
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3480812}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 3.020285, y: 2.5109847, z: 0.022895034}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &168452642 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2599079455344501954, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
@@ -1316,6 +1392,7 @@ MonoBehaviour:
   replaceSameSlot: 1
   inheritFromQueen: 1
   initialGenes:
+  - {fileID: 11400000, guid: 3ee9c727c3a452c4d926983e3928fb36, type: 2}
   - {fileID: 11400000, guid: a34029a69c7460b4a8af37719a0de8eb, type: 2}
   currentGenes: []
 --- !u!1 &1421458598
@@ -1620,6 +1697,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 8864650367434385086, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1745948711}
+    - targetCorrespondingSourceObject: {fileID: 8864650367434385086, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1745948712}
   m_SourcePrefab: {fileID: 100100000, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
 --- !u!1 &1745948710 stripped
 GameObject:
@@ -1643,6 +1723,23 @@ MonoBehaviour:
   initialGenes:
   - {fileID: 11400000, guid: a34029a69c7460b4a8af37719a0de8eb, type: 2}
   currentGenes: []
+--- !u!114 &1745948712
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1745948710}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 03982bb837747c74ba1e2a36a9a2aae2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  layIntervalSeconds: 3
+  eggFoodCost: 2
+  requireBuiltNursery: 0
+  stopInWinter: 0
+  nursery: {fileID: 0}
 --- !u!114 &1912105044 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3177295665664023184, guid: 1e55574dd91f35e4c98ea3a5c50e4dd2, type: 3}
@@ -2334,3 +2431,4 @@ SceneRoots:
   - {fileID: 572249948}
   - {fileID: 1297784051}
   - {fileID: 1421458601}
+  - {fileID: 3480814}

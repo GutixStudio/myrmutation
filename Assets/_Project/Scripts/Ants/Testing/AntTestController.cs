@@ -6,29 +6,37 @@ using UnityEngine.InputSystem;
 namespace Myrmutation.Ants.Testing
 {
     /// <summary>
-    /// SOLO PRUEBAS (Scenes/Test/B.unity). Da órdenes a una hormiga a mano y muestra lo que percibe.
-    ///   Clic en una zona → MoverA (a la sala si está construida, si no a la entrada)
-    ///   T → Trabajar (en la sala donde esté, durante 'workSeconds')
-    ///   C → Comer (gasta RationSize de comida)
-    ///   P → Parar
-    ///   H → Ir a la Despensa más cercana y comer al llegar (prueba NearestRoom + IsAtTarget)
-    ///   R → Empezar / dejar de descansar (en la sala donde esté o en el sitio)
+    /// SOLO PRUEBAS (Scenes/Test/B.unity). Controla una hormiga y muestra lo que piensa.
+    ///
+    /// Con cerebro (AntBrain activo):
+    ///   Clic en una zona con sala → asignarle esa sala (Ant.AssignedRoom); ella decide el resto
+    ///   N → quitarle la sala asignada
+    ///   B → suspender / reanudar el cerebro
+    ///
+    /// Con el cerebro suspendido (o sin cerebro), órdenes manuales como en B1/B3:
+    ///   Clic en una zona → MoverA · T trabajar · C comer · P parar · H ir a comer · R descansar
     /// </summary>
     public class AntTestController : MonoBehaviour
     {
         [SerializeField] private AntActuator ant;
         [SerializeField] private float workSeconds = 3f;
 
+        private Ant antCore;
         private AntSensor sensor;
         private AntNeeds needs;
+        private AntBrain brain;
         private bool eatOnArrival;
         private string lastEvent = "-";
+
+        private bool BrainActive => brain != null && brain.enabled && !brain.IsSuspended;
 
         private void Awake()
         {
             if (ant == null) return;
+            antCore = ant.GetComponent<Ant>();
             sensor = ant.GetComponent<AntSensor>();
             needs = ant.GetComponent<AntNeeds>();
+            brain = ant.GetComponent<AntBrain>();
         }
 
         private void OnEnable()
@@ -36,6 +44,7 @@ namespace Myrmutation.Ants.Testing
             CameraController.Tapped += OnTap;
             EventBus.Subscribe<AntDied>(OnAntDied);
             if (ant != null) { ant.ActionFinished += OnActionFinished; ant.Ate += OnAte; }
+            if (brain != null) brain.StateChanged += OnBrainChanged;
         }
 
         private void OnDisable()
@@ -43,13 +52,24 @@ namespace Myrmutation.Ants.Testing
             CameraController.Tapped -= OnTap;
             EventBus.Unsubscribe<AntDied>(OnAntDied);
             if (ant != null) { ant.ActionFinished -= OnActionFinished; ant.Ate -= OnAte; }
+            if (brain != null) brain.StateChanged -= OnBrainChanged;
         }
+
+        // ================= ENTRADA =================
 
         private void OnTap(Vector2 world)
         {
             if (ant == null) return;
             var zone = BuildZone.At(world);
             if (zone == null) return;
+
+            if (BrainActive)
+            {
+                if (zone.Room == null) { lastEvent = $"{zone.ZoneId} no tiene sala"; return; }
+                antCore.AssignedRoom = zone.Room;
+                lastEvent = $"Asignada a {zone.Room.name} ({zone.ZoneId})";
+                return;
+            }
 
             Vector3 target = zone.Room != null ? zone.Room.WorkPosition : zone.EntrancePosition;
             eatOnArrival = false;
@@ -62,10 +82,17 @@ namespace Myrmutation.Ants.Testing
             var kb = Keyboard.current;
             if (kb == null || ant == null) return;
 
+            if (kb.bKey.wasPressedThisFrame) ToggleBrain();
+            if (kb.nKey.wasPressedThisFrame) { antCore.AssignedRoom = null; lastEvent = "Sin sala asignada"; }
+
+            bool manual = kb.tKey.wasPressedThisFrame || kb.cKey.wasPressedThisFrame || kb.pKey.wasPressedThisFrame
+                          || kb.hKey.wasPressedThisFrame || kb.rKey.wasPressedThisFrame;
+            if (!manual) return;
+            if (BrainActive) { lastEvent = "Cerebro activo: pulsa B para órdenes manuales"; return; }
+
             if (kb.tKey.wasPressedThisFrame)
             {
                 eatOnArrival = false;
-                // Lo mismo que hará el cerebro (B2): agotada = no trabaja.
                 if (needs != null && !needs.CanWork) lastEvent = "Agotada: no puede trabajar";
                 else { ant.Work(RoomHere(), workSeconds); lastEvent = "Trabajar"; }
             }
@@ -74,6 +101,15 @@ namespace Myrmutation.Ants.Testing
             if (kb.hKey.wasPressedThisFrame) GoEat();
             if (kb.rKey.wasPressedThisFrame) ToggleRest();
         }
+
+        private void ToggleBrain()
+        {
+            if (brain == null) { lastEvent = "La hormiga no tiene AntBrain"; return; }
+            if (brain.IsSuspended) { brain.Resume(); lastEvent = "Cerebro reanudado"; }
+            else { brain.Suspend(); ant.Stop(); lastEvent = "Cerebro suspendido: órdenes manuales"; }
+        }
+
+        // ================= ÓRDENES MANUALES =================
 
         private int Ration => needs != null ? needs.RationSize : 1;
 
@@ -91,14 +127,17 @@ namespace Myrmutation.Ants.Testing
             eatOnArrival = false;
             if (needs.IsResting) { needs.StopRest(); lastEvent = "Deja de descansar"; return; }
 
-            ant.Stop();   // descansar solo cuenta si está quieta
+            ant.Stop();
             var room = RoomHere();
             needs.StartRest(room);
             lastEvent = room != null ? $"Descansa en {room.name}" : "Descansa en el sitio";
         }
 
+        // ================= EVENTOS =================
+
         private void OnActionFinished(AntAction action)
         {
+            if (BrainActive) return;
             lastEvent = $"Terminó: {action}";
             if (action == AntAction.Moving && eatOnArrival && sensor != null && sensor.IsAtTarget)
             {
@@ -110,9 +149,11 @@ namespace Myrmutation.Ants.Testing
 
         private void OnAte(int rations) => lastEvent = rations > 0 ? $"Ha comido {rations} ración(es)" : "No había comida";
 
+        private void OnBrainChanged(BrainGoal goal, BrainStep step) => lastEvent = $"Cerebro: {goal}/{step}";
+
         private void OnAntDied(AntDied e)
         {
-            if (ant != null && e.Ant == ant.GetComponent<Ant>()) lastEvent = $"MUERTA ({e.Cause})";
+            if (antCore != null && e.Ant == antCore) lastEvent = $"MUERTA ({e.Cause})";
         }
 
         private Room RoomHere()
@@ -121,12 +162,14 @@ namespace Myrmutation.Ants.Testing
             return null;
         }
 
+        // ================= PANEL =================
+
         private void OnGUI()
         {
             int food = ResourceManager.Instance != null ? ResourceManager.Instance.Get(ResourceType.Food) : -1;
 
             GUI.matrix = Matrix4x4.Scale(Vector3.one * 1.5f);
-            GUILayout.BeginArea(new Rect(10, 10, 360, 380), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(10, 10, 380, 420), GUI.skin.box);
 
             if (ant == null)
             {
@@ -136,13 +179,15 @@ namespace Myrmutation.Ants.Testing
                 return;
             }
 
+            if (brain != null)
+                GUILayout.Label($"CEREBRO: {(brain.IsSuspended ? "suspendido" : brain.StateName)}");
+            GUILayout.Label($"Sala asignada: {(antCore.AssignedRoom != null ? antCore.AssignedRoom.name : "ninguna")}");
             GUILayout.Label($"Acción: {ant.Current}   Velocidad: {ant.Speed:0.0}");
             if (sensor != null)
             {
                 GUILayout.Label($"Hambre: {sensor.Hunger01:0.00}  →  TieneHambre: {sensor.IsHungry}");
                 GUILayout.Label($"Energía: {sensor.Energy01:0.00}  →  Cansada: {sensor.IsTired} · Descansada: {sensor.IsRested}");
                 GUILayout.Label($"Descansando: {sensor.IsResting} · Agotada: {sensor.IsExhausted}");
-                GUILayout.Label($"EstaEnObjetivo: {sensor.IsAtTarget}");
             }
             if (needs != null)
             {
@@ -151,7 +196,9 @@ namespace Myrmutation.Ants.Testing
             }
             GUILayout.Label($"Comida colonia: {(food >= 0 ? food.ToString() : "sin ResourceManager")}");
             GUILayout.Label($"Último: {lastEvent}");
-            GUILayout.Label("Clic: mover · T trabajar · C comer · P parar · H ir a comer · R descansar");
+            GUILayout.Label(BrainActive
+                ? "Clic zona: asignar sala · N quitar sala · B suspender cerebro"
+                : "Clic: mover · T trabajar · C comer · P parar · H comer · R descansar · B cerebro");
             GUILayout.EndArea();
         }
     }

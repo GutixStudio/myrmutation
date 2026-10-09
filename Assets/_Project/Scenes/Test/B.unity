@@ -124,7 +124,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 2599079455344501954, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
   m_PrefabInstance: {fileID: 5221341188181009125}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 1369098589}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4ca177cdfcde5eb4a99edd5dda495cd6, type: 3}
@@ -138,6 +138,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1579441129106290574, guid: 1e55574dd91f35e4c98ea3a5c50e4dd2, type: 3}
+      propertyPath: warm
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 1579441129106290574, guid: 1e55574dd91f35e4c98ea3a5c50e4dd2, type: 3}
       propertyPath: zoneId
       value: Z2
@@ -476,6 +480,8 @@ MonoBehaviour:
   startingRooms:
   - zone: {fileID: 976812015}
     room: {fileID: 11400000, guid: bbd07c5e7f1bd8740a7a290c9dedcaea, type: 2}
+  - zone: {fileID: 1550384865}
+    room: {fileID: 11400000, guid: 1dc5b42ebedd81c49bc6eb39fa93e654, type: 2}
   menu: {fileID: 0}
   costIncreasePerRoom: 0.25
   soilSpeed: 1
@@ -740,6 +746,28 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1639659197341445827, guid: 1e55574dd91f35e4c98ea3a5c50e4dd2, type: 3}
   m_PrefabInstance: {fileID: 364157181}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1369098589 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8864650367434385086, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
+  m_PrefabInstance: {fileID: 5221341188181009125}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1369098594
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1369098589}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4df9af65cb658bc4cb10378ac9f881be, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  replaceSameSlot: 1
+  inheritFromQueen: 1
+  initialGenes:
+  - {fileID: 11400000, guid: a34029a69c7460b4a8af37719a0de8eb, type: 2}
+  currentGenes: []
 --- !u!1001 &1429755246
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -862,6 +890,17 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1550384865 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1579441129106290574, guid: 1e55574dd91f35e4c98ea3a5c50e4dd2, type: 3}
+  m_PrefabInstance: {fileID: 364157181}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f70b08b36b0a45b4bb22949b7ac35be8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &1912105044 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3177295665664023184, guid: 1e55574dd91f35e4c98ea3a5c50e4dd2, type: 3}
@@ -933,7 +972,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 8864650367434385086, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1369098594}
   m_SourcePrefab: {fileID: 100100000, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:

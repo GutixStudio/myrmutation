@@ -8,14 +8,15 @@ namespace Myrmutation.Ants
     /// Necesidades de la hormiga (B3): SOLO los números. Qué hacer con ellos lo decide el cerebro (B2).
     ///
     /// ENERGÍA  1 (llena) → 0 (agotada)
-    ///   · Baja a Stats.energyRate por segundo mientras no descansa.
+    ///   · Baja a Stats.energyRate por segundo mientras no descansa, multiplicado según lo que hace:
+    ///     trabajando x1 · andando o parada x0,3 (ir de una sala a otra apenas cansa).
     ///   · Sube a restRecoveryPerSecond (x el multiplicador de la sala) mientras descansa.
     ///   · IsTired (≤ 0,25) → a descansar · IsRested (≥ 0,95) → a trabajar. Dos umbrales = sin bucles.
     ///   · Si llega a 0 queda AGOTADA (IsExhausted): no puede trabajar (CanWork = false) hasta
     ///     recuperar la energía por completo (1). En ese caso IsRested también espera a 1. No muere.
     ///
     /// HAMBRE   0 (saciada) → 1 (famélica)
-    ///   · Sube a Stats.hungerRate por segundo (los genes la cambian a través de Stats).
+    ///   · Sube a Stats.hungerRate x hungerRateScale (0,5) por segundo (los genes la cambian a través de Stats).
     ///   · IsHungry (≥ 0,6) → a la Despensa.
     ///   · Si pasa starvationDelay segundos a 1 → Ant.Kill(Starvation) (si es la reina, Ant.Kill ya da Game Over).
     ///
@@ -43,7 +44,18 @@ namespace Myrmutation.Ants
         [Tooltip("Al llegar a esta energía ha descansado (IsRested)")]
         [Range(0f, 1f)] [SerializeField] private float restedThreshold = 0.95f;
 
+        [Header("Gasto de energía según la actividad (x Stats.energyRate)")]
+        [Tooltip("Trabajando en su sala")]
+        [SerializeField] private float workingEnergyFactor = 1f;
+        [Tooltip("Andando por los túneles")]
+        [SerializeField] private float walkingEnergyFactor = 0.3f;
+        [Tooltip("Parada o comiendo")]
+        [SerializeField] private float idleEnergyFactor = 0.3f;
+
         [Header("Hambre")]
+        [Tooltip("Multiplica Stats.hungerRate (0,5 = el hambre sube a la mitad de velocidad). " +
+                 "Ajuste de balance de B; si D lo ajusta en las castas, volver a 1")]
+        [SerializeField] private float hungerRateScale = 0.5f;
         [Tooltip("Con este hambre o más tiene hambre (IsHungry)")]
         [Range(0f, 1f)] [SerializeField] private float hungryThreshold = 0.6f;
         [Tooltip("Segundos que aguanta con el hambre al máximo antes de morir")]
@@ -113,7 +125,7 @@ namespace Myrmutation.Ants
 
             // Energía
             if (IsResting) energy += restRecoveryPerSecond * RestMultiplier(RestRoom) * dt;
-            else energy -= stats.energyRate * dt;
+            else energy -= stats.energyRate * EnergyDrainFactor() * dt;
             energy = Mathf.Clamp01(energy);
             if (energy <= 0f) exhausted = true;
             else if (energy >= 1f) exhausted = false;
@@ -122,7 +134,7 @@ namespace Myrmutation.Ants
             if (exhausted && actuator != null && actuator.Current == AntAction.Working) actuator.Stop();
 
             // Hambre
-            hunger = Mathf.Clamp01(hunger + stats.hungerRate * dt);
+            hunger = Mathf.Clamp01(hunger + stats.hungerRate * hungerRateScale * dt);
             if (IsStarving)
             {
                 starvingTime += dt;
@@ -167,6 +179,27 @@ namespace Myrmutation.Ants
         }
 
         // ================= AUXILIARES =================
+
+        /// <summary>
+        /// Cuánto gasta según lo que está haciendo (multiplica a Stats.energyRate).
+        ///
+        /// TODO (TRANSPORTE · quien implemente que las hormigas carguen cosas):
+        ///   Al andar CARGADA debe gastar más energía, en proporción al peso de la carga.
+        ///   Propuesta: en el caso Moving, multiplicar por (1 + cargaActual / Stats.carryCapacity),
+        ///   o sea x2 con la carga al máximo. La carga actual la tendrá que exponer el sistema de
+        ///   transporte (p. ej. una propiedad CarriedWeight en el componente que lleve la carga);
+        ///   leerla aquí con GetComponent y sumarla a este cálculo. Hablarlo con B.
+        /// </summary>
+        private float EnergyDrainFactor()
+        {
+            if (actuator == null) return workingEnergyFactor;
+            switch (actuator.Current)
+            {
+                case AntAction.Working: return workingEnergyFactor;
+                case AntAction.Moving: return walkingEnergyFactor;   // TODO transporte: x (1 + carga / carryCapacity)
+                default: return idleEnergyFactor;                    // parada o comiendo
+            }
+        }
 
         /// <summary>Stats de la hormiga; si aún no tiene (sin casta), los de por defecto.</summary>
         private AntStats CurrentStats()

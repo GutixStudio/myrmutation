@@ -452,6 +452,64 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 1e55574dd91f35e4c98ea3a5c50e4dd2, type: 3}
+--- !u!1 &409392201
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 409392202}
+  - component: {fileID: 409392203}
+  m_Layer: 0
+  m_Name: MutationVisual
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &409392202
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 409392201}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.9327719, y: 0.45292467, z: 0.03146432}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &409392203
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 409392201}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 30ed512ca29b276428fc066a0215134d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  duration: 2
+  flashDuration: 0.4
+  tintStrength: 0.5
+  geneColor: {r: 1, g: 0.85, b: 0.35, a: 1}
+  flawColor: {r: 0.55, g: 0.85, b: 0.35, a: 1}
+  flashColor: {r: 1, g: 1, b: 1, a: 1}
+  iconSize: 0.45
+  textSize: 3
+  riseDistance: 0.6
+  glowMaxScale: 2.2
+  sortingOrder: 100
+  goodColor: {r: 0.49, g: 0.99, b: 0.54, a: 1}
+  badColor: {r: 1, g: 0.48, b: 0.42, a: 1}
+  testGene: {fileID: 11400000, guid: 3ee9c727c3a452c4d926983e3928fb36, type: 2}
 --- !u!224 &452284060 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 7234368697529178632, guid: a130494fe5cfdbd47b86322649666e44, type: 3}
@@ -2432,3 +2490,4 @@ SceneRoots:
   - {fileID: 1297784051}
   - {fileID: 1421458601}
   - {fileID: 3480814}
+  - {fileID: 409392202}

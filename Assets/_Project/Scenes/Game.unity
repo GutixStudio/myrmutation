@@ -6834,6 +6834,22 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1588136873}
     m_Modifications:
+    - target: {fileID: 3018113998250975264, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
+      propertyPath: currentGenes.Array.size
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3018113998250975264, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
+      propertyPath: initialGenes.Array.size
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3018113998250975264, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
+      propertyPath: 'currentGenes.Array.data[0]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 3ee9c727c3a452c4d926983e3928fb36, type: 2}
+    - target: {fileID: 3018113998250975264, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
+      propertyPath: 'initialGenes.Array.data[0]'
+      value: 
+      objectReference: {fileID: 11400000, guid: 3ee9c727c3a452c4d926983e3928fb36, type: 2}
     - target: {fileID: 4005316638765879390, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
       propertyPath: m_LocalPosition.x
       value: -1

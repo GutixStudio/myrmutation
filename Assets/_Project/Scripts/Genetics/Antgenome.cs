@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Myrmutation.Genetics
 {
-    /// <summary>
+    
     /// Genoma de una hormiga (C2). Gestiona la lista Ant.Genes y mantiene Ant.Stats al día:
     /// Stats = stats base de la casta + modificadores de TODOS sus genes.
     /// Se recalcula solo al añadir o quitar un gen.
@@ -14,7 +14,7 @@ namespace Myrmutation.Genetics
     /// Las crías nuevas heredan automáticamente los genes que la reina haya acumulado para su casta
     /// (ver QueenGenome). Este componente NO publica AntMutated: eso lo hace quien dispare la mutación
     /// (el Festín), porque heredar al nacer no es una mutación.
-    /// </summary>
+
     [RequireComponent(typeof(Ant))]
     [DefaultExecutionOrder(10)] // después de Ant.Awake, que fija Stats = baseStats de la casta
     public class AntGenome : MonoBehaviour
@@ -34,7 +34,7 @@ namespace Myrmutation.Genetics
         private Ant owner;
         private readonly List<StatModifier> modifierBuffer = new List<StatModifier>();
 
-        /// <summary>Se dispara tras cada recálculo (por si el visual o la UI quieren refrescarse).</summary>
+        //Se dispara tras cada recálculo (por si el visual o la UI quieren refrescarse).
         public event Action Changed;
 
         public Ant Owner => owner != null ? owner : (owner = GetComponent<Ant>());
@@ -59,7 +59,7 @@ namespace Myrmutation.Genetics
 
         public bool HasGene(GeneData gene) => gene != null && Owner.Genes.Contains(gene);
 
-        /// <summary>¿Tiene algún gen con este behaviorTag? (p. ej. "Glotona"). Lo usa la IA de B.</summary>
+        /// ¿Tiene algún gen con este behaviorTag? (p. ej. "Glotona"). Lo usa la IA de B.
         public bool HasBehaviorTag(string tag)
         {
             if (string.IsNullOrEmpty(tag)) return false;
@@ -68,7 +68,7 @@ namespace Myrmutation.Genetics
             return false;
         }
 
-        /// <summary>Añade un gen y recalcula. Devuelve false si es nulo o ya lo tenía.</summary>
+        ///Añade un gen y recalcula. Devuelve false si es nulo o ya lo tenía.
         public bool AddGene(GeneData gene)
         {
             if (gene == null || Owner.Genes.Contains(gene)) return false;
@@ -81,7 +81,7 @@ namespace Myrmutation.Genetics
             return true;
         }
 
-        /// <summary>Quita un gen y recalcula. Devuelve false si no lo tenía.</summary>
+        /// Quita un gen y recalcula. Devuelve false si no lo tenía.
         public bool RemoveGene(GeneData gene)
         {
             if (gene == null || !Owner.Genes.Remove(gene)) return false;
@@ -89,7 +89,7 @@ namespace Myrmutation.Genetics
             return true;
         }
 
-        /// <summary>Stats = base de la casta + modificadores de todos los genes.</summary>
+        ///Stats = base de la casta + modificadores de todos los genes.
         public void Recalculate()
         {
             var ant = Owner;

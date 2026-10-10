@@ -853,6 +853,8 @@ GameObject:
   - component: {fileID: 4693328292074627435}
   - component: {fileID: 8206043701161156377}
   - component: {fileID: 7176778729409643398}
+  - component: {fileID: 3018113998250975264}
+  - component: {fileID: 2092484361194478946}
   m_Layer: 0
   m_Name: Ant
   m_TagString: Untagged
@@ -950,6 +952,10 @@ MonoBehaviour:
   restRecoveryPerSecond: 0.1
   tiredThreshold: 0.25
   restedThreshold: 0.95
+  workingEnergyFactor: 1
+  walkingEnergyFactor: 0.3
+  idleEnergyFactor: 0.3
+  hungerRateScale: 0.5
   hungryThreshold: 0.6
   starvationDelay: 10
   mealRelief: 1
@@ -969,3 +975,36 @@ MonoBehaviour:
   retryDelay: 3
   logTransitions: 0
   showStateLabel: 1
+--- !u!114 &3018113998250975264
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8864650367434385086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4df9af65cb658bc4cb10378ac9f881be, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  replaceSameSlot: 1
+  inheritFromQueen: 1
+  initialGenes: []
+  currentGenes: []
+--- !u!114 &2092484361194478946
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8864650367434385086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 994380699d49dfe4790442fd2d9592ee, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  visual: {fileID: 0}
+  maxOffsetX: 0.4
+  maxOffsetY: 0.08
+  useSortingGroup: 1
+  baseSortingOrder: 10

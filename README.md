@@ -55,4 +55,4 @@ Assets/_Project/
 - Tablero, issues y sprints en GitHub Projects. Comunicación del equipo por Discord.
 
 ## Equipo
-Ayoze González · Naroa Jiménez · Alonso Cancela · Ignacio Perea · Nicolás Roson · Iñigo García
+Ayoze González · Naroa Jiménez · Alonso Cancela · Ignacio Perea · Nicolás Rosón · Iñigo García

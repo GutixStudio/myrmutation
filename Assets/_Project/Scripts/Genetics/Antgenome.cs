@@ -7,16 +7,16 @@ using UnityEngine;
 namespace Myrmutation.Genetics
 {
     
-    /// Genoma de una hormiga (C2). Gestiona la lista Ant.Genes y mantiene Ant.Stats al día:
+    /// Genoma de una hormiga (C2). Gestiona la lista Ant.Genes y mantiene Ant.Stats al dÃ­a:
     /// Stats = stats base de la casta + modificadores de TODOS sus genes.
-    /// Se recalcula solo al añadir o quitar un gen.
+    /// Se recalcula solo al aÃ±adir o quitar un gen.
     ///
-    /// Las crías nuevas heredan automáticamente los genes que la reina haya acumulado para su casta
-    /// (ver QueenGenome). Este componente NO publica AntMutated: eso lo hace quien dispare la mutación
-    /// (el Festín), porque heredar al nacer no es una mutación.
+    /// Las crÃ­as nuevas heredan automÃ¡ticamente los genes que la reina haya acumulado para su casta
+    /// (ver QueenGenome). Este componente NO publica AntMutated: eso lo hace quien dispare la mutaciÃ³n
+    /// (el FestÃ­n), porque heredar al nacer no es una mutaciÃ³n.
 
     [RequireComponent(typeof(Ant))]
-    [DefaultExecutionOrder(10)] // después de Ant.Awake, que fija Stats = baseStats de la casta
+    [DefaultExecutionOrder(10)] // despuÃ©s de Ant.Awake, que fija Stats = baseStats de la casta
     public class AntGenome : MonoBehaviour
     {
         [Tooltip("Una pieza por ranura: un gen nuevo sustituye al anterior de la misma ranura (regla de la alfa)")]
@@ -25,7 +25,7 @@ namespace Myrmutation.Genetics
         [Tooltip("Al nacer, copia los genes que la reina tiene para la casta de esta hormiga")]
         [SerializeField] private bool inheritFromQueen = true;
 
-        [Tooltip("Genes con los que empieza (útil para probar en las escenas de Test)")]
+        [Tooltip("Genes con los que empieza (Ãºtil para probar en las escenas de Test)")]
         [SerializeField] private List<GeneData> initialGenes = new List<GeneData>();
 
         [Header("Solo lectura: refleja Ant.Genes en Play (editarla no hace nada)")]
@@ -34,7 +34,7 @@ namespace Myrmutation.Genetics
         private Ant owner;
         private readonly List<StatModifier> modifierBuffer = new List<StatModifier>();
 
-        //Se dispara tras cada recálculo (por si el visual o la UI quieren refrescarse).
+        //Se dispara tras cada recÃ¡lculo (por si el visual o la UI quieren refrescarse).
         public event Action Changed;
 
         public Ant Owner => owner != null ? owner : (owner = GetComponent<Ant>());
@@ -51,15 +51,15 @@ namespace Myrmutation.Genetics
             if (inheritFromQueen && !Owner.IsQueen && QueenGenome.Instance != null)
                 QueenGenome.Instance.ApplyTo(this);
 
-            // Por si la casta se asignó después del Awake (p. ej. al instanciar desde la guardería).
+            // Por si la casta se asignÃ³ despuÃ©s del Awake (p. ej. al instanciar desde la guarderÃ­a).
             Recalculate();
         }
 
-        // ---------- API pública ----------
+        // ---------- API pÃºblica ----------
 
         public bool HasGene(GeneData gene) => gene != null && Owner.Genes.Contains(gene);
 
-        /// ¿Tiene algún gen con este behaviorTag? (p. ej. "Glotona"). Lo usa la IA de B.
+        /// Â¿Tiene algÃºn gen con este behaviorTag? (p. ej. "Glotona"). Lo usa la IA de B.
         public bool HasBehaviorTag(string tag)
         {
             if (string.IsNullOrEmpty(tag)) return false;
@@ -68,7 +68,7 @@ namespace Myrmutation.Genetics
             return false;
         }
 
-        ///Añade un gen y recalcula. Devuelve false si es nulo o ya lo tenía.
+        ///AÃ±ade un gen y recalcula. Devuelve false si es nulo o ya lo tenÃ­a.
         public bool AddGene(GeneData gene)
         {
             if (gene == null || Owner.Genes.Contains(gene)) return false;
@@ -81,7 +81,7 @@ namespace Myrmutation.Genetics
             return true;
         }
 
-        /// Quita un gen y recalcula. Devuelve false si no lo tenía.
+        /// Quita un gen y recalcula. Devuelve false si no lo tenÃ­a.
         public bool RemoveGene(GeneData gene)
         {
             if (gene == null || !Owner.Genes.Remove(gene)) return false;
@@ -107,4 +107,4 @@ namespace Myrmutation.Genetics
             Changed?.Invoke();
         }
     }
-}
+}

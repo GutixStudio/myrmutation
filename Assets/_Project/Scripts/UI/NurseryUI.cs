@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using Myrmutation.Colony;
 using Myrmutation.Core;
@@ -27,15 +28,38 @@ namespace Myrmutation.UI
 
         private float refreshTimer;
 
-        private void Awake()
+        // Protección: si por error hay dos NurseryUI con los mismos botones, cada clic alimentaría
+        // dos larvas. Solo se queda activo uno (el que tenga Waiting Highlight, o el primero).
+        private static readonly List<NurseryUI> instances = new List<NurseryUI>();
+
+        private void Awake() => instances.Add(this);
+        private void OnDestroy() => instances.Remove(this);
+
+        private static NurseryUI Primary()
         {
-            if (minorButton != null) minorButton.onClick.AddListener(() => FeedOldest(CasteType.Minor));
-            if (mediaButton != null) mediaButton.onClick.AddListener(() => FeedOldest(CasteType.Media));
-            if (majorButton != null) majorButton.onClick.AddListener(() => FeedOldest(CasteType.Major));
+            NurseryUI first = null;
+            foreach (var n in instances)
+            {
+                if (n == null) continue;
+                if (n.waitingHighlight != null) return n;
+                if (first == null) first = n;
+            }
+            return first;
         }
 
         private void Start()
         {
+            if (Primary() != this)
+            {
+                Debug.LogWarning("[NurseryUI] Hay más de un NurseryUI en la escena; se desactiva este (quítalo).", this);
+                enabled = false;
+                return;
+            }
+
+            if (minorButton != null) minorButton.onClick.AddListener(() => FeedOldest(CasteType.Minor));
+            if (mediaButton != null) mediaButton.onClick.AddListener(() => FeedOldest(CasteType.Media));
+            if (majorButton != null) majorButton.onClick.AddListener(() => FeedOldest(CasteType.Major));
+
             SetLabel(minorButton, CasteType.Minor, "Menor");
             SetLabel(mediaButton, CasteType.Media, "Media");
             SetLabel(majorButton, CasteType.Major, "Mayor");

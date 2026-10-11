@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Myrmutation.Core;
 using Myrmutation.Core.Data;
 using TMPro;
 using UnityEngine;
@@ -9,6 +10,8 @@ namespace Myrmutation.Building
 {
     /// <summary>
     /// Menú de construcción: un panel con un botón por sala. Los botones se generan a partir de un botón plantilla.
+    /// Si no hay suficientes obreras libres (sin sala) para el mínimo de una sala, su botón sale desactivado
+    /// y dice cuántas faltan.
     /// </summary>
     public class BuildMenuUI : MonoBehaviour
     {
@@ -34,7 +37,9 @@ namespace Myrmutation.Building
         public void Open(BuildZone zone, IReadOnlyList<RoomData> options, Action<RoomData> onPick)
         {
             Clear();
-            if (title != null) title.text = $"Construir en {zone.ZoneId} · {StratumName(zone.Stratum)}";
+            int free = FreeWorkers();
+            bool testMode = Ant.All.Count == 0 && BuildManager.Instance != null && BuildManager.Instance.AllowWithoutAnts;
+            if (title != null) title.text = $"Construir en {zone.ZoneId} · {StratumName(zone.Stratum)}\n<size=70%>Obreras libres: {free}</size>";
 
             foreach (var opt in options)
             {
@@ -47,6 +52,13 @@ namespace Myrmutation.Building
                     float cost = BuildManager.Instance != null ? BuildManager.Instance.CostFor(opt) : opt.workCost;
                     label.text = $"{opt.displayName}\n<size=70%>{opt.minWorkers} obreras · {Mathf.RoundToInt(cost)} de trabajo</size>";
                 }
+                bool enough = testMode || free >= opt.minWorkers;
+                b.interactable = enough;
+                if (!enough && label != null)
+                {
+                    int missing = opt.minWorkers - free;
+                    label.text = $"{opt.displayName}\n<size=70%><color=#E06050>Faltan {missing} obrera{(missing == 1 ? "" : "s")} libre{(missing == 1 ? "" : "s")}</color></size>";
+                }
                 var picked = opt;
                 b.onClick.AddListener(() => { Close(); onPick(picked); });
                 spawned.Add(b);
@@ -58,6 +70,15 @@ namespace Myrmutation.Building
         {
             Clear();
             if (panel != null) panel.SetActive(false);
+        }
+
+        /// <summary>Obreras vivas sin sala asignada (las que pueden ir a construir).</summary>
+        private static int FreeWorkers()
+        {
+            int n = 0;
+            foreach (var a in Ant.All)
+                if (a != null && a.IsAlive && !a.IsQueen && a.AssignedRoom == null) n++;
+            return n;
         }
 
         private void Clear()

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Myrmutation.Building;
 using Myrmutation.Core;
 using UnityEngine;
@@ -16,6 +17,10 @@ namespace Myrmutation.Ants
     /// No usa colliders en las hormigas: busca la más cercana al punto tocado. Así no bloquea
     /// los toques sobre las zonas de construcción (BuildZone.At usa el primer collider).
     /// Los toques sobre la UI ya los ignora CameraController.
+    ///
+    /// A5: mide la distancia al DIBUJO de la hormiga (hijo "Visual", que AntSpread desplaza) y no a
+    /// su posición real, que es la misma para todas las que trabajan en una sala. Si hay varias
+    /// bajo el dedo, tocar otra vez en el mismo sitio selecciona la siguiente (ciclo).
     /// </summary>
     public class AntSelection : MonoBehaviour
     {
@@ -69,7 +74,7 @@ namespace Myrmutation.Ants
             if (selectionMarker == null) return;
             bool show = Current != null;
             if (selectionMarker.gameObject.activeSelf != show) selectionMarker.gameObject.SetActive(show);
-            if (show) selectionMarker.position = Current.transform.position;
+            if (show) selectionMarker.position = PickPoint(Current);
         }
 
         // ================= API =================
@@ -107,15 +112,44 @@ namespace Myrmutation.Ants
         /// <summary>Hormiga viva más cercana a un punto del mundo, dentro de pickRadius (o null).</summary>
         public Ant FindAntAt(Vector2 world)
         {
-            Ant best = null;
-            float bestD = pickRadius * pickRadius;
+            var list = AntsAt(world);
+            return list.Count > 0 ? list[0] : null;
+        }
+
+        /// <summary>Hormigas vivas dentro de pickRadius, de la más cercana a la más lejana.</summary>
+        public List<Ant> AntsAt(Vector2 world)
+        {
+            candidates.Clear();
+            float r2 = pickRadius * pickRadius;
             foreach (var a in Ant.All)
             {
                 if (a == null || !a.IsAlive) continue;
-                float d = ((Vector2)a.transform.position - world).sqrMagnitude;
-                if (d <= bestD) { bestD = d; best = a; }
+                if (((Vector2)PickPoint(a) - world).sqrMagnitude <= r2) candidates.Add(a);
             }
-            return best;
+            candidates.Sort((x, y) =>
+                ((Vector2)PickPoint(x) - world).sqrMagnitude.CompareTo(((Vector2)PickPoint(y) - world).sqrMagnitude));
+            return candidates;
+        }
+
+        private readonly List<Ant> candidates = new List<Ant>();
+
+        /// <summary>Punto donde se ve la hormiga: su hijo "Visual" si lo tiene (AntSpread lo desplaza).</summary>
+        private static Vector3 PickPoint(Ant a)
+        {
+            var visual = a.transform.Find("Visual");
+            return visual != null ? visual.position : a.transform.position;
+        }
+
+        /// <summary>
+        /// La más cercana; pero si la seleccionada ya está entre las que hay bajo el dedo,
+        /// la siguiente de la lista (así se puede llegar a todas aunque estén amontonadas).
+        /// </summary>
+        private Ant PickCycling(Vector2 world)
+        {
+            var list = AntsAt(world);
+            if (list.Count == 0) return null;
+            int i = Current != null ? list.IndexOf(Current) : -1;
+            return i >= 0 ? list[(i + 1) % list.Count] : list[0];
         }
 
         // ================= ENTRADA =================
@@ -136,7 +170,7 @@ namespace Myrmutation.Ants
                 return;
             }
 
-            Select(FindAntAt(world));
+            Select(PickCycling(world));
         }
 
         private void OnAntDied(AntDied e)

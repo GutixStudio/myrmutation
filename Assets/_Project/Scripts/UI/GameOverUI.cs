@@ -29,7 +29,7 @@ namespace Myrmutation.UI
                               : "La reina ha caído";
 
             if (summaryText != null)
-                summaryText.text = $"Días: {RunSummary.Day}\nEstación: {SeasonName(RunSummary.Season)}\nGlotonas vivas: {RunSummary.AntsAlive}";
+                summaryText.text = $"Días: {RunSummary.Day}\nEstación: {SeasonName(RunSummary.Season)}\nGlotonas vivas: {RunSummary.AntsAlive}\nBiomasa genética: {RunSummary.Biomass}";
         }
 
         private static string SeasonName(Season s)

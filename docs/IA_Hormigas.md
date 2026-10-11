@@ -1,6 +1,7 @@
 # IA de las hormigas · Guía para el equipo
 
-**Responsable:** B · **Código:** `Assets/_Project/Scripts/Ants/` · **Escena de pruebas:** `Scenes/Test/B.unity`
+**Responsable:** B · **Código:** `Assets/_Project/Scripts/Ants/` · **Escena de pruebas:** `Scenes/Test/B.unity`  
+**Última actualización:** 11/10/2026 · integración en `Game.unity` (A5) para la alfa v0.1-alpha
 
 Este documento explica cómo funciona la IA de las hormigas y **qué tenéis que tener en cuenta si vuestro sistema interactúa con ellas**. Si algo no encaja con lo que necesitáis, hablad con B antes de tocar estos scripts.
 
@@ -17,7 +18,8 @@ El prefab `Prefabs/AntsP/Ant.prefab` lleva estos componentes. Cada uno hace una 
 | `AntBrain` | Decisión | Decide qué hacer cada 0,3 s (máquina de estados) |
 | `AntActuator` | Actuación | Ejecuta órdenes: moverse, parar, trabajar, comer |
 | `AntNeeds` | Necesidades | Los números de hambre y energía |
-| `AntGenome` (C) | Genética | Recalcula `Ant.Stats` con los genes |
+| `AntGenome` (C) | Genética | Recalcula `Ant.Stats` con los genes. Ya va en el prefab (las crías de la Guardería también lo llevan) |
+| `AntSpread` (A5) | Visual | Desplaza un poco el dibujo (hijo `Visual`) de cada hormiga y le da su propio orden de dibujado, para que las que están en la misma sala no se vean como una sola. No toca la posición real ni la IA |
 
 **Regla:** el cerebro decide, el actuador ejecuta y el sensor informa. Si vuestro sistema necesita que una hormiga haga algo, no le deis órdenes al actuador con el cerebro activo: el cerebro las pisará en menos de medio segundo. Ver §4.
 
@@ -58,10 +60,13 @@ bool trabajandoAqui = act != null && act.Current == AntAction.Working && act.Wor
 ```
 
 ### D · Producción (`ColonyProduction`)
-Ahora que existe el cerebro, **activad *Only Count Working Ants*** en `ColonyProduction`. Así solo producen las hormigas que están en la sala trabajando, no las que han ido a comer.
+*Only Count Working Ants* está **activado** en `Game.unity`: solo producen las hormigas que están en la sala trabajando, no las que han ido a comer.
+- En la alfa la conversión hongo → comida está en modo **Direct** (automática). Las obreras asignadas a la **Despensa** comen allí, pero no producen: en modo *Storage* serían ellas quienes convierten el hongo (pendiente de decidir en el balance).
 
-### A · Construcción (`ConstructionSite`)
-`ConstructionSite` suma la fuerza de **todas** las constructoras reclutadas, estén donde estén. Las hormigas ya van a la obra (su `AssignedRoom`) y trabajan allí, así que conviene contar solo las que cumplan la condición de arriba, igual que hace D.
+### A · Construcción (`ConstructionSite`) · *hecho en A5*
+- La obra **solo recluta** si hay al menos `minWorkers` obreras **libres** (`AssignedRoom == null`, no reina). Si no, no manda a nadie. El menú de construcción (`BuildMenuUI`) ya desactiva las salas para las que faltan obreras.
+- Cuenta solo las constructoras que cumplen la condición de arriba (trabajando **en** la obra) y, con *Require Min Workers On Site* (en `BuildManager`, activado), **no avanza hasta que estén allí las mínimas**. Si alguna se va a comer o a descansar, la obra se para.
+- Si el grupo baja del mínimo (muerte, reasignación), libera al resto. Al terminar, todas quedan **sin sala** (vuelven a estar libres).
 
 ### C · Festín / expediciones / cualquiera que "se lleve" una hormiga
 Para controlar una hormiga un rato (devorarla, mandarla de expedición…), **suspended su cerebro primero** y reanudadlo al terminar:
@@ -71,6 +76,14 @@ brain?.Suspend();   // a partir de aquí el cerebro no da órdenes
 // ... vuestro sistema mueve / usa la hormiga con AntActuator ...
 brain?.Resume();    // vuelve a decidir sola desde cero
 ```
+
+### D · Expediciones (`ExpeditionSystem`)
+Al salir, cada hormiga tiene el cerebro **suspendido** y el GameObject **desactivado**: desaparece de `Ant.All` y no cuenta para nada (ni comida, ni obras, ni selección) hasta que vuelve, cuando se reactiva y se reanuda el cerebro.
+- Ojo: si una constructora se va de expedición sigue apuntada a su obra, así que en modo estricto la obra puede pararse hasta que vuelva.
+
+### D · Invierno (`SeasonRules`)
+- `SeasonRules` cobra en invierno 2 de comida por hormiga y día (y mata de hambre si no llega), y bloquea las expediciones.
+- `SeasonRules.HungerMultiplier` (×1,5 en invierno) **todavía no lo lee `AntNeeds`**. Si se decide usarlo, es una línea en `AntNeeds.Update`: multiplicar `stats.hungerRate` por `SeasonRules.HungerMultiplier`. En ese caso conviene quitar el mantenimiento diario para no cobrar dos veces.
 
 ### Genes con comportamiento
 El cerebro y las necesidades leen `GeneData.behaviorTag`. Ahora mismo se usa **`"Glotona"`** (come doble ración). Si creáis un gen que deba cambiar el comportamiento, poned un `behaviorTag` y avisad a B para programarlo.
@@ -82,13 +95,23 @@ El cerebro y las necesidades leen `GeneData.behaviorTag`. Ahora mismo se usa **`
 **Scripts:** `Scripts/Ants/UI/` · **Prefab:** `Prefabs/AntsP/AntPanel.prefab`
 
 - Tocar o hacer clic cerca de una hormiga la selecciona (sin colliders: se busca la más cercana al punto). Tocar en otro sitio la deselecciona.
+- *(A5)* La distancia se mide al **dibujo** de la hormiga (hijo `Visual`, que mueve `AntSpread`), no a su posición real. Si hay varias bajo el dedo, **tocar otra vez en el mismo sitio selecciona la siguiente**, así se llega a todas aunque estén amontonadas. `AntSelection.AntsAt(punto)` devuelve la lista ordenada por distancia.
 - La hormiga seleccionada está en `AntSelection.Current`.
 - **Evento `AntSelected`:** se publica al seleccionar, y también al deseleccionar con **`Ant = null`**. Si os suscribís, comprobad siempre si es `null`:
   ```csharp
   void OnAntSelected(AntSelected e) { if (e.Ant == null) { /* ninguna seleccionada */ } }
   ```
 - El panel muestra nombre, casta, estado, genes (el `icon` de cada `GeneData`; si no tiene, un cuadro de su `tint`) y barras de hambre y energía.
-- **Asignar a sala:** lista con el rendimiento de la hormiga en cada sala (`ColonyProduction.GetEfficiency`) y su ocupación (`workerCapacity`). Con la lista abierta, también se puede tocar la sala en el mapa. La Sala Real no aparece y la reina no se puede asignar.
+- **Asignar a sala:** lista con el rendimiento de la hormiga en cada sala (`ColonyProduction.GetEfficiency`) y su ocupación (`workerCapacity`). Con la lista abierta, también se puede tocar la sala en el mapa. La Sala Real no aparece y la reina no se puede asignar. La opción **Ninguna** la deja libre (para construir).
+- **Botones de acción que hay ahora en `Game.unity`:**
+
+| Botón | Lo registra | Cuándo sale |
+|---|---|---|
+| *Devorar* | `FeastSystem` (C3) | Hormiga viva (y Cámara del Festín si *Require Feast Room*) |
+| *Comer presa* | `PreyFeastAction` (A5) | Obrera, hay presas guardadas y Cámara del Festín construida |
+| *Apuntar / Quitar de expedición* | `ExpeditionSystem` (D4) | Según si está apuntada |
+
+  Como pueden salir 3 o más, el contenedor de acciones del panel debe repartirlos en filas (Grid de 2 columnas o similar).
 
 ### C (y cualquiera) · Añadir un botón al panel (p. ej. "Devorar")
 No hace falta tocar `AntPanelUI`. Desde vuestro script:
@@ -109,4 +132,6 @@ void OnDisable() => AntPanelAction.Unregister("Devorar");
 
 - **Transporte (carga):** al andar cargada, una hormiga debe gastar más energía según el peso. Está marcado con `TODO (TRANSPORTE)` en `AntNeeds.EnergyDrainFactor()`, con la fórmula propuesta. Quien haga el transporte debe exponer la carga actual y hablarlo con B.
 - **Dormitorio (beta):** descansar ahí será ×2. Falta un `RoomType` nuevo en `Core/Enums.cs` (A1). El hueco está preparado en `AntNeeds.RestMultiplier()`.
+- **Constructoras sin sala:** al terminar una obra quedan libres y esperan quietas. Propuesta: que se queden asignadas a la sala que han construido (hasta su capacidad).
+- **Invierno:** usar o no `SeasonRules.HungerMultiplier` en `AntNeeds` (ver §4).
 - **Balance:** el hambre va a la mitad mediante `AntNeeds` (*Hunger Rate Scale* = 0,5). Si D ajusta `hungerRate` directamente en las castas, hay que volver a poner ese valor a 1.

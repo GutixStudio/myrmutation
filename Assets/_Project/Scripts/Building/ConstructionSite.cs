@@ -9,8 +9,9 @@ namespace Myrmutation.Building
     /// Sala en obras. Recluta obreras libres (AssignedRoom = esta sala) y avanza según la suma de su fuerza.
     /// La IA (B) debe tratar "trabajar en una sala no construida" como excavar.
     /// Al terminar: libera a las constructoras, llama a Room.CompleteBuild() y se destruye.
-    /// A5: solo recluta si hay al menos minWorkers libres (si no, no manda a nadie), y solo avanza
-    /// con la fuerza de las que están EN la obra trabajando (no las que van de camino, comen o descansan).
+    /// A5: solo recluta si hay al menos minWorkers libres (si no, no manda a nadie). Avanza con la fuerza
+    /// de las que están EN la obra trabajando, y (BuildManager.RequireMinWorkersOnSite) solo cuando están
+    /// allí al menos las mínimas de la sala.
     /// </summary>
     public class ConstructionSite : MonoBehaviour
     {
@@ -32,6 +33,8 @@ namespace Myrmutation.Building
         public bool HasEnoughWorkers => builders.Count >= minWorkers;
         /// <summary>Constructoras que están ahora mismo en la obra trabajando.</summary>
         public int WorkingCount { get; private set; }
+        /// <summary>La obra está avanzando este frame.</summary>
+        public bool Progressing { get; private set; }
 
         public void Init(BuildManager m, Room r, float workCost, float speed, int min, int max)
         {
@@ -67,8 +70,15 @@ namespace Myrmutation.Building
                 WorkingCount++;
                 strength += b.Stats.strength;
             }
+            // Requisito de la sala: no avanza hasta que estén todas las mínimas en la obra.
+            if (manager.RequireMinWorkersOnSite && WorkingCount < minWorkers) strength = 0f;
+            Progressing = strength > 0f;
+
             if (Ant.All.Count == 0 && manager.AllowWithoutAnts)
+            {
                 strength = manager.TestStrength;
+                Progressing = true;
+            }
 
             progress += strength * speedMultiplier * Time.deltaTime / cost;
             room.BuildProgress = Mathf.Clamp01(progress);
@@ -137,9 +147,8 @@ namespace Myrmutation.Building
                 float p = Mathf.Clamp01(progress);
                 barFill.localScale = new Vector3(p, 1f, 1f);
                 barFill.localPosition = new Vector3((p - 1f) * 0.5f * spriteWidth, 0f, 0f);
-                bool testMode = Ant.All.Count == 0 && manager.AllowWithoutAnts;
                 barFillRenderer.color =
-                    testMode || WorkingCount > 0 ? new Color(0.95f, 0.8f, 0.2f)   // amarillo = construyendo
+                    Progressing                  ? new Color(0.95f, 0.8f, 0.2f)   // amarillo = construyendo
                     : HasEnoughWorkers           ? new Color(0.6f, 0.6f, 0.6f)    // gris = de camino / comiendo
                                                  : new Color(0.9f, 0.25f, 0.2f);  // rojo = faltan obreras libres
             }

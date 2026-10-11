@@ -10,5 +10,6 @@ namespace Myrmutation.UI
         public static int Day;
         public static Season Season;
         public static int AntsAlive;
+        public static int Biomass;
     }
 }

@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Despensa
   description: "Reserva de comida de la colonia. Las Glotonas vienen aqu\xED cuando
     el hambre aprieta."
-  sprite: {fileID: 0}
+  sprite: {fileID: 8317957962518768412, guid: 56cac649831c88e44b33a4234850b4fd, type: 3}
   icon: {fileID: 0}
   minWorkers: 2
   workCost: 20

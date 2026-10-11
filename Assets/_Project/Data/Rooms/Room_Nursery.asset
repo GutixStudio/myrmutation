@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: Room_Nursery
   m_EditorClassIdentifier: 
   type: 1
-  displayName: "Guarder\xEDa "
+  displayName: "Guarder\xEDa"
   description: "Aqu\xED los huevos se convierten en larvas y pupas. Seg\xFAn c\xF3mo
     las alimentes, nacer\xE1n Menores, Medias o Mayores."
-  sprite: {fileID: 0}
+  sprite: {fileID: -5961869380073128628, guid: eeecbf4415b64f843b1187b5c7c6965e, type: 3}
   icon: {fileID: 0}
   minWorkers: 2
   workCost: 30

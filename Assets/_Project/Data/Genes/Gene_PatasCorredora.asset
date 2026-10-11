@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d2477d05c53ed242beb4cafe4dde34f, type: 3}
+  m_Name: Gene_PatasCorredora
+  m_EditorClassIdentifier: 
+  id: patas_corredora
+  displayName: Patas de corredora
+  description: "Patas largas y nerviosas: corre un 50 % m\xE1s r\xE1pido, pero se
+    cansa un 25 % antes."
+  origin: 'Presa: hormiga del desierto (Cataglyphis)'
+  icon: {fileID: -9095717837082945937, guid: 5df087a1305038747bab8b723fa70c4f, type: 3}
+  isFlaw: 0
+  slot: 5
+  bodyPart: {fileID: 0}
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  modifiers:
+  - stat: 1
+    additive: 0
+    percent: 50
+  - stat: 3
+    additive: 0
+    percent: 25
+  behaviorTag: 

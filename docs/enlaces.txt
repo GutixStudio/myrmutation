@@ -1,0 +1,12 @@
+MYRMUTATION · Gutix (GutixStudio) · Entrega Alfa v0.1-alpha
+
+GitHub (organización): https://github.com/GutixStudio
+GitHub (código):       https://github.com/GutixStudio/myrmutation
+Release alfa:          https://github.com/GutixStudio/myrmutation/releases/tag/v0.1-alpha
+GDD:                   https://github.com/GutixStudio/myrmutation/blob/main/docs/GDD.md
+Itch.io (estudio):     https://gutix-studio.itch.io
+Itch.io (juego):       COMPLETAR (enlace a la página del juego)
+Portfolio (Pages):     COMPLETAR
+X / Twitter:           https://x.com/gutixstudio
+YouTube:               COMPLETAR
+Linktree:              https://linktr.ee/gutixstudio

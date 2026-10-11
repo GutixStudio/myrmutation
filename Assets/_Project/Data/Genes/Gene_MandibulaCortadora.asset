@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d2477d05c53ed242beb4cafe4dde34f, type: 3}
+  m_Name: Gene_MandibulaCortadora
+  m_EditorClassIdentifier: 
+  id: mandibula_cortadora
+  displayName: "Mand\xEDbula cortadora"
+  description: "Mand\xEDbulas de podadora: un 30 % m\xE1s de fuerza y carga una unidad
+    extra."
+  origin: 'Presa: hormiga cortadora de hojas (Atta)'
+  icon: {fileID: 7482667652216324306, guid: acf6b8d9f08059d4fa346fa98b0cc1c9, type: 3}
+  isFlaw: 0
+  slot: 1
+  bodyPart: {fileID: 0}
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  modifiers:
+  - stat: 0
+    additive: 0
+    percent: 30
+  - stat: 4
+    additive: 1
+    percent: 0
+  behaviorTag: 

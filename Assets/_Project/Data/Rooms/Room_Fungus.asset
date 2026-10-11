@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Sala de Hongos
   description: "Las obreras convierten hojas en hongo, y el hongo en comida. Cuantas
     m\xE1s trabajen, m\xE1s se produce."
-  sprite: {fileID: 0}
+  sprite: {fileID: -2585070680663913251, guid: 77151f3352bca0a41a772a0a1700479f, type: 3}
   icon: {fileID: 0}
   minWorkers: 2
   workCost: 35

@@ -528,11 +528,13 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "GUTIX STUDIO\r\n\r\nProducci\xF3n, UI y web \u2014 Nombre\r\nProgramaci\xF3n
-    base y construcci\xF3n \u2014 Nombre\r\nIA de las hormigas \u2014 Nombre\r\nGen\xE9tica
-    \u2014 Nombre\r\nEconom\xEDa y balance \u2014 Nombre\r\nArte \u2014 Nombre\r\n\r\nContacto:
-    gutixstudio@gmail.com\r\n\r\nInterfaz: Kenney (CC0) \xB7 Motor: Unity 6 (PROVISIONAL)\r\nJuegos
-    para Web y Redes Sociales \xB7 URJC 2025-26"
+  m_text: "GUTIX STUDIO\r\n\r\nAyoze Gonz\xE1lez \xB7 Naroa Jim\xE9nez \xB7 I\xF1igo
+    Garc\xEDa \xB7 Alonso Cancela \xB7 Ignacio Perea \xB7 Nicol\xE1s Roson\r\n\r\nDise\xF1o:
+    Ayoze Gonz\xE1lez, \xCD\xF1igo Garc\xEDa\nProgramaci\xF3n: Ayoze Gonz\xE1lez,
+    Naroa Jim\xE9nez, Alonso Cancela, Ignacio Perea, Nicol\xE1s Roson, \xCD\xF1igo
+    Garc\xEDa\nArte: Naroa Jim\xE9nez\r\n\r\nContacto: gutixstudio@gmail.com\r\n\r\nMotor:
+    Unity 6 \xB7 Fuente: Liberation Sans (TextMesh Pro)\r\nJuegos para Web y Redes
+    Sociales \xB7 URJC 2025-26"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -1437,7 +1439,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d1deedae41d629419872f1c2bac8ed1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  url: https://gutix-studio.itch.io
+  url: https://x.com/gutixstudio
 --- !u!114 &1753481555
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1848,7 +1850,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Itchi.io
+  m_text: Itch.io
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

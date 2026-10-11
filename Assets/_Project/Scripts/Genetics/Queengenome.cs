@@ -8,7 +8,7 @@ namespace Myrmutation.Genetics
 {
     /// 
     /// Genoma por casta que guarda la reina (C2). Cuando la reina devora a una mutante, sus genes
-    /// (y taras) pasan al genoma de SU casta, y todas las crÌas futuras de esa casta nacen con ellos.
+    /// (y taras) pasan al genoma de SU casta, y todas las cr√≠as futuras de esa casta nacen con ellos.
     ///
     /// Va en la reina. Solo debe haber uno (QueenGenome.Instance).
     /// Publica GeneInherited cada vez que un gen entra en el genoma de una casta.
@@ -36,7 +36,7 @@ namespace Myrmutation.Genetics
         {
             if (Instance != null && Instance != this)
             {
-                Debug.LogWarning("Hay m·s de un QueenGenome en la escena; se ignora este.", this);
+                Debug.LogWarning("Hay m√°s de un QueenGenome en la escena; se ignora este.", this);
                 Destroy(this); // OJO: Destroy(this), no gameObject: este componente vive en la reina
                 return;
             }
@@ -63,7 +63,7 @@ namespace Myrmutation.Genetics
 
         /// 
         /// La reina devora a una mutante: todos sus genes pasan al genoma de su casta.
-        /// Devuelve cu·ntos genes nuevos entraron. No mata ni toca a la mutante (eso lo hace el FestÌn).
+        /// Devuelve cu√°ntos genes nuevos entraron. No mata ni toca a la mutante (eso lo hace el Fest√≠n).
         /// 
         public int InheritFrom(Ant mutant)
         {
@@ -75,7 +75,7 @@ namespace Myrmutation.Genetics
             return added;
         }
 
-        /// AÒade un gen al genoma de una casta. Devuelve false si es nulo o ya estaba.
+        /// A√±ade un gen al genoma de una casta. Devuelve false si es nulo o ya estaba.
         public bool AddGene(CasteType caste, GeneData gene, bool notify = true)
         {
             if (gene == null) return false;
@@ -100,4 +100,4 @@ namespace Myrmutation.Genetics
                 target.AddGene(gene);
         }
     }
-}
+}

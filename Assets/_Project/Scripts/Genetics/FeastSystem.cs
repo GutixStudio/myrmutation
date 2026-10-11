@@ -34,13 +34,13 @@ namespace Myrmutation.Genetics
         public const string DevourLabel = "Devorar";
 
         [Header("Reglas")]
-        [Tooltip("Si está activo, solo se puede devorar con una Cámara del Festín construida (RoomType.Feast)")]
+        [Tooltip("Si estÃ¡ activo, solo se puede devorar con una CÃ¡mara del FestÃ­n construida (RoomType.Feast)")]
         [SerializeField] private bool requireFeastRoom = false;
 
-        [Header("Taras posibles (arrastrar aquí Flaw_Glotona; en la alfa es la única)")]
+        [Header("Taras posibles (arrastrar aquÃ­ Flaw_Glotona; en la alfa es la Ãºnica)")]
         [SerializeField] private List<GeneData> flawPool = new List<GeneData>();
 
-        [Header("Probabilidades (0..1) · GDD §5.7")]
+        [Header("Probabilidades (0..1) Â· GDD Â§5.7")]
         [Tooltip("Hormiga propia CON genes: probabilidad de copiar uno de sus genes (el resto es tara)")]
         [Range(0f, 1f)][SerializeField] private float ownWithGenes_Gene = 0.8f;
         [Tooltip("Hormiga propia SIN genes: probabilidad de tara (el resto es nada)")]
@@ -76,7 +76,7 @@ namespace Myrmutation.Genetics
         {
             if (Instance != null && Instance != this)
             {
-                Debug.LogWarning("Hay más de un FeastSystem en la escena; se ignora este.", this);
+                Debug.LogWarning("Hay mÃ¡s de un FeastSystem en la escena; se ignora este.", this);
                 Destroy(this);
                 return;
             }
@@ -128,7 +128,7 @@ namespace Myrmutation.Genetics
         {
             if (eater == ant) { CancelChoosing("cancelado"); return; }   
             eater = ant;
-            if (logResults) Debug.Log($"[Festín] {ant.Name}: elige una víctima (toca otra hormiga; tocar en vacío cancela).");
+            if (logResults) Debug.Log($"[FestÃ­n] {ant.Name}: elige una vÃ­ctima (toca otra hormiga; tocar en vacÃ­o cancela).");
         }
 
         private void OnAntSelected(AntSelected e)
@@ -143,7 +143,7 @@ namespace Myrmutation.Genetics
             eater = null;
             if (!CanDevour(chosenEater, e.Ant))
             {
-                if (logResults) Debug.Log($"[Festín] {e.Ant.Name} no es una víctima válida.");
+                if (logResults) Debug.Log($"[FestÃ­n] {e.Ant.Name} no es una vÃ­ctima vÃ¡lida.");
                 return;
             }
             pendingEater = chosenEater;
@@ -152,13 +152,13 @@ namespace Myrmutation.Genetics
 
         private void OnAntDied(AntDied e)
         {
-            if (e.Ant == eater) CancelChoosing("la devoradora murió");
+            if (e.Ant == eater) CancelChoosing("la devoradora muriÃ³");
         }
 
         private void CancelChoosing(string reason)
         {
             if (eater == null) return;
-            if (logResults) Debug.Log($"[Festín] {reason}.");
+            if (logResults) Debug.Log($"[FestÃ­n] {reason}.");
             eater = null;
         }
 
@@ -188,7 +188,7 @@ namespace Myrmutation.Genetics
                 var queen = QueenGenome.Instance;
                 if (queen == null)
                 {
-                    Debug.LogWarning("[Festín] La reina devora pero no hay QueenGenome en la escena.", this);
+                    Debug.LogWarning("[FestÃ­n] La reina devora pero no hay QueenGenome en la escena.", this);
                     return false;
                 }
                 inherited = queen.InheritFrom(victim);
@@ -243,7 +243,7 @@ namespace Myrmutation.Genetics
             var genome = eater.GetComponent<AntGenome>();
             if (genome == null)
             {
-                Debug.LogWarning($"[Festín] {eater.Name} no tiene AntGenome: no puede mutar.", eater);
+                Debug.LogWarning($"[FestÃ­n] {eater.Name} no tiene AntGenome: no puede mutar.", eater);
                 return FeastOutcome.Nothing;
             }
 
@@ -270,7 +270,7 @@ namespace Myrmutation.Genetics
         private static void GiveBiomass(int amount)
         {
             if (ResourceManager.Instance != null) ResourceManager.Instance.Add(ResourceType.Biomass, amount);
-            else Debug.LogWarning("[Festín] No hay ResourceManager: no se puede dar biomasa.");
+            else Debug.LogWarning("[FestÃ­n] No hay ResourceManager: no se puede dar biomasa.");
         }
 
         private void Report(FeastResult r, int inherited)
@@ -286,9 +286,9 @@ namespace Myrmutation.Genetics
                     case FeastOutcome.Inherited: what = $"la reina hereda {inherited} gen(es) para la casta"; break;
                     default: what = "no pasa nada"; break;
                 }
-                Debug.Log($"[Festín] {r.Eater.Name} devora a {who}: {what} (+{r.Biomass} biomasa)");
+                Debug.Log($"[FestÃ­n] {r.Eater.Name} devora a {who}: {what} (+{r.Biomass} biomasa)");
             }
             Devoured?.Invoke(r);
         }
     }
-}
+}

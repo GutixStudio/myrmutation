@@ -37,6 +37,7 @@ namespace Myrmutation.UI
             RunSummary.Day = gm != null ? gm.Day : 0;
             RunSummary.Season = gm != null ? gm.CurrentSeason : Season.Spring;
             RunSummary.AntsAlive = Ant.All.Count;
+            RunSummary.Biomass = ResourceManager.Instance != null ? ResourceManager.Instance.Get(ResourceType.Biomass) : 0;
             StartCoroutine(GoToGameOver());
         }
 

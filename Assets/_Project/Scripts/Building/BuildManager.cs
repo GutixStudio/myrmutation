@@ -49,11 +49,15 @@ namespace Myrmutation.Building
         [Tooltip("Si no hay ninguna hormiga, construir igualmente con esta fuerza simulada")]
         [SerializeField] private bool allowWithoutAnts = true;
         [SerializeField] private float testStrength = 3f;
+        [Tooltip("La obra solo avanza cuando están EN ella al menos las obreras mínimas de la sala. " +
+                 "Desactivado: basta con reclutar el mínimo y avanza con las que vayan llegando.")]
+        [SerializeField] private bool requireMinWorkersOnSite = true;
 
         private int roomsBuilt;
 
         public Sprite SquareSprite => squareSprite;
         public bool AllowWithoutAnts => allowWithoutAnts;
+        public bool RequireMinWorkersOnSite => requireMinWorkersOnSite;
         public float TestStrength => testStrength;
         public int RoomSortingOrder => roomSortingOrder;
 

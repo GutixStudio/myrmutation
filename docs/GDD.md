@@ -328,12 +328,12 @@ Menú principal ──Nueva partida──► Partida ──(gana/pierde/Salir)�
 ## 15. Equipo
 | Rol | Responsable |
 |---|---|
-| Producción, UI y web | *(nombre)* |
-| Arquitectura y construcción | *(nombre)* |
-| IA de hormigas | *(nombre)* |
-| Genética | *(nombre)* |
-| Economía y balance | *(nombre)* |
-| Arte | *(nombre)* |
+| Producción, UI y web | *Nicolás Rosón* |
+| Arquitectura y construcción | *Ayoze González* |
+| IA de hormigas | *Íñigo García* |
+| Genética | *Alonso Cancela* |
+| Economía y balance | *Ignacio Perea* |
+| Arte | *Naroa Jiménez* |
 
 Metodología **Scrum** con sprints de 1 semana, tablero en GitHub Projects y comunicación por Microsoft Teams.
 

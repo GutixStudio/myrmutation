@@ -160,8 +160,8 @@ Las horas dedicadas a cada tarea de mi campo han sido las siguientes:
 
 - **F1 (paleta y guía de estilo): 4**
   Fijar el estilo visual antes de producir.
-- **F2 (hormiga base y reina): 8**
-  Las piezas de la hormiga para montarla en Unity.
+- **F3 (escenario y salas): 8**
+  Las ilustraciones de las salas del hormiguero.
 - **Apoyo en la integración (Game): 4**
   Ayudar a juntar los sistemas en la escena principal.
 - **Pruebas del juego: 3**
@@ -171,9 +171,9 @@ Las horas dedicadas a cada tarea de mi campo han sido las siguientes:
 
 | Miembro | Área | Horas |
 |---|---|---|
-| Ayoze González | A1–A5 · E1–E7 | X |
+| Ayoze González | A1–A5 · E1–E7 | 24 h |
 | Íñigo García | B1–B4 | 7 h |
 | Alonso Cancela | C1–C5 | 8,5 h |
 | Ignacio Perea | D1–D2 | 4,5 h |
 | Nicolás Rosón | D3–D4 · E10 | 8 h |
-| Naroa Jiménez | F · apoyo en integración y pruebas | X |
+| Naroa Jiménez | F · apoyo en integración y pruebas | 19 h |

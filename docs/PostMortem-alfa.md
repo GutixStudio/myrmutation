@@ -39,29 +39,29 @@ Las horas dedicadas a cada tarea de mi campo han sido las siguientes:
 
 **Horas para**
 
-- **A1 (integrar arquitectura base): X**
+- **A1 (integrar arquitectura base): 3**
   Subir la arquitectura común para que todo el equipo pudiera trabajar en paralelo.
-- **A2 (escena Game y cámara): X**
+- **A2 (escena Game y cámara): 2**
   Escena principal con el hormiguero y una cámara con arrastre y zoom en PC y móvil.
-- **A3 (navegación por túneles): X**
+- **A3 (navegación por túneles): 2**
   Grafo de waypoints para que las hormigas vayan de una sala a otra.
-- **A4 (construcción simplificada): X**
+- **A4 (construcción simplificada): 2**
   Construir salas en las zonas prediseñadas según las obreras asignadas.
-- **A5 (integración en Game.unity): X**
+- **A5 (integración en Game.unity): 4**
   Juntar todos los sistemas para poder jugar una partida completa.
-- **E1 (reunión y reparto): X**
+- **E1 (reunión y reparto): 1**
   Arrancar el sprint y asignar roles.
-- **E2 (cargar el tablero): X**
+- **E2 (cargar el tablero): 1**
   Crear las issues con responsable, estimación y fecha.
-- **E3 (pantallas obligatorias): X**
+- **E3 (pantallas obligatorias): 2**
   Menú principal, Créditos y Game Over con navegación entre escenas.
-- **E4 (cuentas y enlaces): X**
+- **E4 (cuentas y enlaces): 1**
   Redes del estudio y archivo de enlaces.
-- **E5 (HUD de partida): X**
+- **E5 (HUD de partida): 1**
   Recursos, día y estación, velocidades y paneles de Guardería y Expedición.
-- **E6 (build en itch.io): X**
+- **E6 (build en itch.io): 1**
   Versión jugable publicada y probada en navegador.
-- **E7 (GDD): X**
+- **E7 (GDD): 4**
   Documento de diseño completo con control de versiones.
 
 ### Íñigo García — Inteligencia artificial (B)
@@ -158,21 +158,13 @@ Las horas dedicadas a cada tarea de mi campo han sido las siguientes:
 
 **Horas para**
 
-- **F1 (paleta y guía de estilo): X**
+- **F1 (paleta y guía de estilo): 4**
   Fijar el estilo visual antes de producir.
-- **F2 (hormiga base y reina): X**
+- **F2 (hormiga base y reina): 8**
   Las piezas de la hormiga para montarla en Unity.
-- **F3 (escenario y salas): X**
-  Las ilustraciones de las salas del hormiguero.
-- **F5 (logo de Myrmutation): X**
-  Identidad del juego para el menú, itch.io y redes.
-- **F7 (iconos de genes): X**
-  Mostrar sobre la hormiga qué gen tiene.
-- **F8 (objetos: hoja y presa): X**
-  Lo que cargan y traen las hormigas.
-- **Apoyo en la integración (Game): X**
+- **Apoyo en la integración (Game): 4**
   Ayudar a juntar los sistemas en la escena principal.
-- **Pruebas del juego: X**
+- **Pruebas del juego: 3**
   Comprobar que las mecánicas funcionan juntas y detectar errores.
 
 ## 3. Resumen de horas

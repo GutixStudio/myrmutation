@@ -364,4 +364,3 @@ Metodología Scrum con sprints de 1 semana, tablero en GitHub Projects y comunic
 ## 16. Referencias
 
 - Juegos: Fallout Shelter (Bethesda), Mewgenics (Edmund McMillen y Tyler Glaiel), Spore (Maxis), Los Sims (Maxis).
-- Uso de IA generativa: Claude como apoyo en diseño, planificación y documentación, con revisión humana del equipo.

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Myrmutation.Ants;
 using Myrmutation.Core;
@@ -56,9 +55,6 @@ namespace Myrmutation.Genetics
 
         [Header("Debug")]
         [SerializeField] private bool logResults = true;
-
-        
-        public event Action<FeastResult> Devoured;
 
         
         public bool IsChoosingVictim => eater != null;
@@ -122,7 +118,8 @@ namespace Myrmutation.Genetics
 
         private bool CanStartDevour(Ant ant) => ant != null && ant.IsAlive && FeastAvailable;
 
-        private bool FeastAvailable => !requireFeastRoom || Room.FindBuilt(RoomType.Feast) != null;
+        /// <summary>Se puede celebrar un Festín ahora (Require Feast Room). También lo usa "Comer presa".</summary>
+        public bool FeastAvailable =>!requireFeastRoom || Room.FindBuilt(RoomType.Feast) != null;
 
         private void StartDevour(Ant ant)
         {
@@ -288,7 +285,6 @@ namespace Myrmutation.Genetics
                 }
                 Debug.Log($"[Festín] {r.Eater.Name} devora a {who}: {what} (+{r.Biomass} biomasa)");
             }
-            Devoured?.Invoke(r);
         }
     }
 }

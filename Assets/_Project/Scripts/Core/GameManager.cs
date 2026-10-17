@@ -11,9 +11,6 @@ namespace Myrmutation.Core
     {
         public static GameManager Instance { get; private set; }
 
-        /// <summary>Resultado de la última partida, para que la pantalla de Game Over lo lea.</summary>
-        public static GameState LastResult { get; private set; } = GameState.GameOver;
-
         [Header("Calendario")]
         [SerializeField] private float secondsPerDay = 20f;
         [SerializeField] private int daysPerSeason = 5;
@@ -72,8 +69,6 @@ namespace Myrmutation.Core
             SetState(Speed == 0 ? GameState.Paused : GameState.Playing);
         }
 
-        public void TogglePause() => SetSpeed(State == GameState.Paused ? 1 : 0);
-
         // ---------- Fin de partida ----------
         public void Win() => EndGame(GameState.Victory);
         public void Lose() => EndGame(GameState.GameOver);
@@ -83,7 +78,6 @@ namespace Myrmutation.Core
         private void EndGame(GameState result)
         {
             if (State == GameState.Victory || State == GameState.GameOver) return;
-            LastResult = result;
             Time.timeScale = 1f;
             SetState(result);
             // La UI (tarea E3) escucha GameStateChanged y carga la pantalla correspondiente.

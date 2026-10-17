@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Myrmutation.Core;
 using Myrmutation.Core.Data;
@@ -34,9 +33,6 @@ namespace Myrmutation.Genetics
         private Ant owner;
         private readonly List<StatModifier> modifierBuffer = new List<StatModifier>();
 
-        //Se dispara tras cada recálculo (por si el visual o la UI quieren refrescarse).
-        public event Action Changed;
-
         public Ant Owner => owner != null ? owner : (owner = GetComponent<Ant>());
         public IReadOnlyList<GeneData> Genes => Owner.Genes;
 
@@ -59,15 +55,6 @@ namespace Myrmutation.Genetics
 
         public bool HasGene(GeneData gene) => gene != null && Owner.Genes.Contains(gene);
 
-        /// ¿Tiene algún gen con este behaviorTag? (p. ej. "Glotona"). Lo usa la IA de B.
-        public bool HasBehaviorTag(string tag)
-        {
-            if (string.IsNullOrEmpty(tag)) return false;
-            foreach (var g in Owner.Genes)
-                if (g != null && g.behaviorTag == tag) return true;
-            return false;
-        }
-
         ///Añade un gen y recalcula. Devuelve false si es nulo o ya lo tenía.
         public bool AddGene(GeneData gene)
         {
@@ -77,14 +64,6 @@ namespace Myrmutation.Genetics
                 Owner.Genes.RemoveAll(g => g != null && g.slot == gene.slot);
 
             Owner.Genes.Add(gene);
-            Recalculate();
-            return true;
-        }
-
-        /// Quita un gen y recalcula. Devuelve false si no lo tenía.
-        public bool RemoveGene(GeneData gene)
-        {
-            if (gene == null || !Owner.Genes.Remove(gene)) return false;
             Recalculate();
             return true;
         }
@@ -103,8 +82,6 @@ namespace Myrmutation.Genetics
 
             currentGenes.Clear();
             currentGenes.AddRange(ant.Genes);
-
-            Changed?.Invoke();
         }
     }
 }

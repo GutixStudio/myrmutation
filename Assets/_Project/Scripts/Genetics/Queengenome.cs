@@ -55,8 +55,6 @@ namespace Myrmutation.Genetics
 
         // ---------- Consulta ----------
 
-        public IReadOnlyList<GeneData> GetGenes(CasteType caste) => genomes[caste];
-
         public bool HasGene(CasteType caste, GeneData gene) => gene != null && genomes[caste].Contains(gene);
 
         // ---------- Herencia ----------

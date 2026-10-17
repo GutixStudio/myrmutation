@@ -63,6 +63,8 @@ Las horas dedicadas a cada tarea de mi campo han sido las siguientes:
   Versión jugable publicada y probada en navegador.
 - **E7 (GDD): 4**
   Documento de diseño completo con control de versiones.
+- **GitHubPages: 6**
+  Página de Portfolio realizado por todo el equipo en conjunto durante llamadas en Discord
 
 ### Íñigo García — Inteligencia artificial (B)
 
@@ -84,6 +86,10 @@ Más o menos, las horas que le he echado a cada tarea han sido estas:
   Que el hambre y la energía cambien con el tiempo y según lo que esté haciendo, y que pueda agotarse o morirse de hambre.
 - **B4 (selección y panel de hormiga): 2**
   Poder pinchar en una hormiga, ver sus datos y mandarla a una sala, dejando hueco para que otros añadan sus botones, como el de Devorar.
+- **E7 (GDD): 4**
+  Documento de diseño completo con control de versiones.
+- **GitHubPages: 6**
+  Página de Portfolio realizado por todo el equipo en conjunto durante llamadas en Discord
 
 ### Alonso Cancela — Genética (C)
 
@@ -107,6 +113,10 @@ Las horas a las que se les ha dedicado tiempo a cada tarea del campo asignado ha
   Que la mutación pase a las siguientes generaciones.
 - **C5 (feedback visual de mutación): 1 y media**
   Que se note cuando una hormiga muta.
+- **E7 (GDD): 4**
+  Documento de diseño completo con control de versiones.
+- **GitHubPages: 6**
+  Página de Portfolio realizado por todo el equipo en conjunto durante llamadas en Discord
 
 ### Ignacio Perea — Economía y cría (D1–D2)
 
@@ -124,6 +134,10 @@ Tiempo dedicado:
   Que las hojas se conviertan en hongo y el hongo en comida, dependiendo de las obreras que haya y de su casta.
 - **D2 (reina y cría): 2 h**
   Que la reina ponga huevos, el ciclo de huevo a adulta, elegir la casta al dar de comer a la larva y que la cría herede los genes.
+- **E7 (GDD): 4**
+  Documento de diseño completo con control de versiones.
+- **GitHubPages: 6**
+  Página de Portfolio realizado por todo el equipo en conjunto durante llamadas en Discord
 
 ### Nicolás Rosón — Estaciones y expediciones (D3–D4) · Portfolio
 
@@ -143,6 +157,10 @@ Tiempo dedicado:
   Salidas al exterior con botín de hojas o presas.
 - **E10 (portfolio en GitHub Pages): 2:30 h**
   Web del estudio con el equipo, el juego y las redes.
+- **E7 (GDD): 4**
+  Documento de diseño completo con control de versiones.
+- **GitHubPages: 6**
+  Página de Portfolio realizado por todo el equipo en conjunto durante llamadas en Discord
 
 ### Naroa Jiménez — Arte (F) · Apoyo en integración y pruebas
 
@@ -158,22 +176,26 @@ Las horas dedicadas a cada tarea de mi campo han sido las siguientes:
 
 **Horas para**
 
-- **F1 (paleta y guía de estilo): 4**
+- **F1 (paleta y guía de estilo): 3**
   Fijar el estilo visual antes de producir.
-- **F3 (escenario y salas): 8**
+- **F3 (escenario y salas): 7**
   Las ilustraciones de las salas del hormiguero.
 - **Apoyo en la integración (Game): 4**
   Ayudar a juntar los sistemas en la escena principal.
-- **Pruebas del juego: 3**
+- **Pruebas del juego: 2**
   Comprobar que las mecánicas funcionan juntas y detectar errores.
+- **E7 (GDD): 4**
+  Documento de diseño completo con control de versiones.
+- **GitHubPages: 6**
+  Página de Portfolio realizado por todo el equipo en conjunto durante llamadas en Discord
 
 ## 3. Resumen de horas
 
 | Miembro | Área | Horas |
 |---|---|---|
-| Ayoze González | A1–A5 · E1–E7 | 24 h |
-| Íñigo García | B1–B4 | 7 h |
-| Alonso Cancela | C1–C5 | 8,5 h |
-| Ignacio Perea | D1–D2 | 4,5 h |
-| Nicolás Rosón | D3–D4 · E10 | 8 h |
-| Naroa Jiménez | F · apoyo en integración y pruebas | 19 h |
+| Ayoze González | A1–A5 · E1–E7 · E10| 30 h |
+| Íñigo García | B1–B4 · E7 · E10| 17 h |
+| Alonso Cancela | C1–C5 · E7 · E10| 18,5 h |
+| Ignacio Perea | D1–D2 · E7 · E10| 14,5 h |
+| Nicolás Rosón | D3–D4 · E7 · E10| 18 h |
+| Naroa Jiménez | F · E10 · D5 · C6 · apoyo en integración y pruebas | 26 h |

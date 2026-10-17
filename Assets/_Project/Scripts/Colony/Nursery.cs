@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Myrmutation.Core;
 using Myrmutation.Core.Data;
@@ -80,13 +79,8 @@ namespace Myrmutation.Colony
         [SerializeField] private bool logEvents = false;
 
         private readonly List<Brood> brood = new List<Brood>();
-        private readonly List<Ant> workerBuffer = new List<Ant>();
         private int nextId = 1;
         private int nameIndex;
-
-        public event Action<Brood> BroodAdded;
-        public event Action<Brood> BroodStageChanged;
-        public event Action<Ant> AntBorn;
 
         public IReadOnlyList<Brood> AllBrood => brood;
         public IReadOnlyList<CasteData> Castes => castes;
@@ -143,7 +137,6 @@ namespace Myrmutation.Colony
             var b = new Brood { Id = nextId++, Stage = BroodStage.Egg, Duration = eggSeconds };
             brood.Add(b);
             if (logEvents) Debug.Log($"[Nursery] Huevo #{b.Id}", this);
-            BroodAdded?.Invoke(b);
             return b;
         }
 
@@ -161,7 +154,6 @@ namespace Myrmutation.Colony
             larva.Timer = 0f;
             larva.Duration = larvaSeconds;
             if (logEvents) Debug.Log($"[Nursery] Larva #{larva.Id} alimentada como {caste.caste} (-{caste.foodCostToRaise} comida)", this);
-            BroodStageChanged?.Invoke(larva);
             return true;
         }
 
@@ -199,7 +191,6 @@ namespace Myrmutation.Colony
             b.Duration = duration;
             b.WaitingFood = 0f;
             if (logEvents) Debug.Log($"[Nursery] #{b.Id} → {stage}", this);
-            BroodStageChanged?.Invoke(b);
         }
 
         private void Hatch(Brood b)
@@ -224,7 +215,6 @@ namespace Myrmutation.Colony
             ApplyCasteVisual(ant, b.Caste);
 
             if (logEvents) Debug.Log($"[Nursery] Nace {ant.Name} ({b.Caste.caste})", ant);
-            AntBorn?.Invoke(ant);
         }
 
         private Vector3 SpawnPosition()
@@ -243,22 +233,12 @@ namespace Myrmutation.Colony
             return round == 0 ? n : $"{n} {round + 1}";
         }
 
+        // Misma regla de obreras que el resto de salas (ColonyProduction.onlyCountWorkingAnts incluida).
         private float WorkerPower()
         {
             var room = Room.FindBuilt(RoomType.Nursery);
-            if (room == null) return 0f;
-
-            workerBuffer.Clear();
-            int cap = room.Data != null ? Mathf.Max(1, room.Data.workerCapacity) : int.MaxValue;
-            foreach (var a in Ant.All)
-            {
-                if (workerBuffer.Count >= cap) break;
-                if (a != null && a.IsAlive && !a.IsQueen && a.AssignedRoom == room) workerBuffer.Add(a);
-            }
-
-            float power = 0f;
-            foreach (var a in workerBuffer) power += ColonyProduction.GetEfficiency(a, RoomType.Nursery);
-            return power;
+            var production = ColonyProduction.Instance;
+            return room != null && production != null ? production.ComputeWorkPower(room, out _) : 0f;
         }
 
         private static Transform FindChild(Transform root, string name)

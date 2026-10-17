@@ -164,7 +164,8 @@ namespace Myrmutation.Economy
         }
 
         // ---------- Obreras y eficiencia ----------
-        private float ComputeWorkPower(Room room, out int count)
+        /// <summary>Suma de eficiencias de las obreras que cuentan en la sala (también la usa la Guardería).</summary>
+        public float ComputeWorkPower(Room room, out int count)
         {
             GetWorkers(room, workerBuffer);
             count = workerBuffer.Count;
@@ -229,9 +230,6 @@ namespace Myrmutation.Economy
                 default: return 0f;
             }
         }
-
-        public bool ProducesIn(RoomType type) =>
-            type == RoomType.FungusGarden || (type == RoomType.Storage && fungusToFood == FungusToFoodMode.Storage);
 
         // ---------- Utilidades ----------
         private RoomState GetOrCreate(Room room)

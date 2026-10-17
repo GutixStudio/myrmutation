@@ -109,13 +109,6 @@ namespace Myrmutation.Ants
             cancelled?.Invoke();
         }
 
-        /// <summary>Hormiga viva más cercana a un punto del mundo, dentro de pickRadius (o null).</summary>
-        public Ant FindAntAt(Vector2 world)
-        {
-            var list = AntsAt(world);
-            return list.Count > 0 ? list[0] : null;
-        }
-
         /// <summary>Hormigas vivas dentro de pickRadius, de la más cercana a la más lejana.</summary>
         public List<Ant> AntsAt(Vector2 world)
         {

@@ -16,7 +16,7 @@ namespace Myrmutation.Building
     /// - Un toque/clic sin arrastrar lanza el evento Tapped con la posición en el mundo
     ///   (lo usan la construcción y la selección de hormigas).
     /// - Ignora los toques que empiezan sobre la UI.
-    /// - No deja que la cámara salga del fondo (bounds).
+    /// - No deja que la cámara salga del mapa (NestGrid) o, en la alfa, del sprite de fondo (bounds).
     /// </summary>
     [RequireComponent(typeof(Camera))]
     public class CameraController : MonoBehaviour
@@ -28,7 +28,7 @@ namespace Myrmutation.Building
         public static bool BlockPan;
 
         [Header("Límites")]
-        [Tooltip("Sprite del fondo: la cámara nunca muestra nada fuera de él")]
+        [Tooltip("Solo si no hay NestGrid (escenas de la alfa): la cámara nunca muestra nada fuera de este sprite")]
         [SerializeField] private SpriteRenderer bounds;
 
         [Header("Zoom (tamaño ortográfico)")]
@@ -177,21 +177,27 @@ namespace Myrmutation.Building
 
         private float MaxAllowedZoom()
         {
-            if (bounds == null) return maxZoom;
-            Bounds b = bounds.bounds;
+            if (!TryGetBounds(out Bounds b)) return maxZoom;
             return Mathf.Max(minZoom, Mathf.Min(maxZoom, b.extents.y, b.extents.x / cam.aspect));
         }
 
         private void ClampToBounds()
         {
-            if (bounds == null) return;
+            if (!TryGetBounds(out Bounds b)) return;
             cam.orthographicSize = Mathf.Clamp(cam.orthographicSize, minZoom, MaxAllowedZoom());
-            Bounds b = bounds.bounds;
             float h = cam.orthographicSize, w = h * cam.aspect;
             Vector3 p = transform.position;
             p.x = b.size.x <= w * 2f ? b.center.x : Mathf.Clamp(p.x, b.min.x + w, b.max.x - w);
             p.y = b.size.y <= h * 2f ? b.center.y : Mathf.Clamp(p.y, b.min.y + h, b.max.y - h);
             transform.position = p;
+        }
+
+        // Con NestGrid se usan sus límites (se recalculan cada frame con el aspecto actual de la pantalla).
+        private bool TryGetBounds(out Bounds b)
+        {
+            if (NestGrid.Instance != null) { b = NestGrid.Instance.WorldBounds; return true; }
+            b = bounds != null ? bounds.bounds : default;
+            return bounds != null;
         }
 
         private Vector3 ScreenToWorld(Vector2 screenPos)

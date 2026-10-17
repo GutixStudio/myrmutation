@@ -5,7 +5,6 @@ using UnityEngine;
 namespace Myrmutation.Building
 {
     public enum ZoneSize { Small, Medium, Large }
-    public enum Stratum { Soil, Clay, Rock }
 
     /// <summary>
     /// Zona prediseñada del mapa donde se puede construir una sala.

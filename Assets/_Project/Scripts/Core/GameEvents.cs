@@ -1,4 +1,5 @@
 using Myrmutation.Core.Data;
+using UnityEngine;
 
 namespace Myrmutation.Core
 {
@@ -15,4 +16,5 @@ namespace Myrmutation.Core
     public struct AntSelected { public Ant Ant; public AntSelected(Ant a) { Ant = a; } }
     public struct AntMutated { public Ant Ant; public GeneData Gene; public AntMutated(Ant a, GeneData g) { Ant = a; Gene = g; } }
     public struct GeneInherited { public CasteType Caste; public GeneData Gene; public GeneInherited(CasteType c, GeneData g) { Caste = c; Gene = g; } }
+    public struct CellDug { public Vector2Int Cell; public CellDug(Vector2Int c) { Cell = c; } }
 }

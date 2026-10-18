@@ -17,4 +17,5 @@ namespace Myrmutation.Core
     public struct AntMutated { public Ant Ant; public GeneData Gene; public AntMutated(Ant a, GeneData g) { Ant = a; Gene = g; } }
     public struct GeneInherited { public CasteType Caste; public GeneData Gene; public GeneInherited(CasteType c, GeneData g) { Caste = c; Gene = g; } }
     public struct CellDug { public Vector2Int Cell; public CellDug(Vector2Int c) { Cell = c; } }
+    public struct BuildPlanned { public RoomData Room; public Vector2Int Origin; public BuildPlanned(RoomData r, Vector2Int o) { Room = r; Origin = o; } }   // Room = null para túneles
 }

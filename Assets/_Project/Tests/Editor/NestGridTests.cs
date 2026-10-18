@@ -107,7 +107,22 @@ namespace Myrmutation.Tests
             // El pozo no entra por el techo de la Sala Real, que queda a 24 de profundidad.
             for (int x = 64; x <= 90; x++)
                 Assert.AreEqual(CellType.Solid, grid.Get(new Vector2Int(x, 54)), $"techo de la Sala Real en x={x}");
-            Assert.AreEqual(CellType.Dug, grid.Get(new Vector2Int(64, 53)));
+            Assert.AreEqual(CellType.Room, grid.Get(new Vector2Int(64, 53)));
+        }
+
+        [Test]
+        public void ParedDeLaSalaSalvoZonasDeAcceso()
+        {
+            // Guardería del mapa inicial: x 35..55, y 39..50.
+            Assert.IsTrue(grid.IsRoomWall(new Vector2Int(45, 38)), "justo debajo de la sala");
+            Assert.IsTrue(grid.IsRoomWall(new Vector2Int(45, 37)), "a 2 casillas de la sala");
+            Assert.IsFalse(grid.IsRoomWall(new Vector2Int(45, 36)), "a 3 casillas de la sala");
+
+            // Zona de acceso de la puerta izquierda: x 32..34, y 39..41. Justo encima ya es pared.
+            for (int y = 39; y <= 41; y++)
+                for (int x = 32; x <= 34; x++)
+                    Assert.IsFalse(grid.IsRoomWall(new Vector2Int(x, y)), $"zona de acceso ({x},{y})");
+            Assert.IsTrue(grid.IsRoomWall(new Vector2Int(34, 42)), "encima de la zona de acceso");
         }
 
         [Test]

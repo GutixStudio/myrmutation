@@ -438,30 +438,31 @@ MonoBehaviour:
     y: 39
     width: 3
     height: 39
-  - x: 35
-    y: 39
-    width: 21
-    height: 12
   - x: 56
     y: 39
     width: 3
     height: 3
-  - x: 64
-    y: 39
-    width: 27
-    height: 15
   - x: 62
     y: 39
     width: 2
     height: 3
-  - x: 95
-    y: 39
-    width: 21
-    height: 12
   - x: 91
     y: 39
     width: 4
     height: 3
+  startingRooms:
+  - x: 35
+    y: 39
+    width: 21
+    height: 12
+  - x: 64
+    y: 39
+    width: 27
+    height: 15
+  - x: 95
+    y: 39
+    width: 21
+    height: 12
 --- !u!4 &1309260058
 Transform:
   m_ObjectHideFlags: 0

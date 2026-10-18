@@ -17,6 +17,10 @@ namespace Myrmutation.Building
         /// <summary>Lado de un bloque de trabajo, en casillas.</summary>
         public const int ChunkSize = 3;
 
+        // §3: anillo de pared alrededor de las salas y alto de las puertas (= ancho de la zona de acceso).
+        private const int RoomWallThickness = 2;
+        private const int DoorSize = 3;
+
         public static NestGrid Instance { get; private set; }
 
         [Header("Medidas")]
@@ -36,16 +40,20 @@ namespace Myrmutation.Building
         [SerializeField] private int clayRows = 27;
 
         [Header("Mapa inicial")]
-        [Tooltip("Rectángulos excavados al empezar, en casillas: pozo, Guardería, Sala Real, Despensa y sus túneles")]
+        [Tooltip("Rectángulos excavados al empezar, en casillas: pozo y túneles entre salas")]
         [SerializeField] private RectInt[] startingDug =
         {
             new RectInt(59, 39, 3, 39),   // pozo de entrada
-            new RectInt(35, 39, 21, 12),  // Guardería
             new RectInt(56, 39, 3, 3),    // túnel Guardería - pozo
-            new RectInt(64, 39, 27, 15),  // Sala Real (techo a 24 de profundidad)
             new RectInt(62, 39, 2, 3),    // túnel pozo - Sala Real
-            new RectInt(95, 39, 21, 12),  // Despensa
             new RectInt(91, 39, 4, 3),    // túnel Sala Real - Despensa
+        };
+        [Tooltip("Huellas de las salas iniciales, en casillas (pasan a Room aunque también estén en startingDug)")]
+        [SerializeField] private RectInt[] startingRooms =
+        {
+            new RectInt(35, 39, 21, 12),  // Guardería
+            new RectInt(64, 39, 27, 15),  // Sala Real (techo a 24 de profundidad)
+            new RectInt(95, 39, 21, 12),  // Despensa
         };
 
         private CellType[] cells;
@@ -53,6 +61,9 @@ namespace Myrmutation.Building
         public int Width => width;
         public int Height => terrainRows + surfaceRows;
         public float CellSize => cellSize;
+
+        /// <summary>Filas de terreno excavable. La primera fila de superficie es esta (y = TerrainRows).</summary>
+        public int TerrainRows => terrainRows;
 
         /// <summary>Rectángulo del mapa entero (terreno + superficie) en el mundo.</summary>
         public Bounds WorldBounds
@@ -97,6 +108,14 @@ namespace Myrmutation.Building
                 for (int y = r.yMin; y < r.yMax; y++)
                     for (int x = r.xMin; x < r.xMax; x++)
                         if (Get(new Vector2Int(x, y)) == CellType.Solid) cells[y * width + x] = CellType.Dug;
+
+            foreach (var r in startingRooms)
+                for (int y = r.yMin; y < r.yMax; y++)
+                    for (int x = r.xMin; x < r.xMax; x++)
+                    {
+                        CellType t = Get(new Vector2Int(x, y));
+                        if (t == CellType.Solid || t == CellType.Dug) cells[y * width + x] = CellType.Room;
+                    }
         }
 
         public Vector2Int WorldToCell(Vector3 world)
@@ -143,6 +162,33 @@ namespace Myrmutation.Building
             IsOpen(Get(cell))
             && IsOpen(Get(cell + Vector2Int.up)) && IsOpen(Get(cell + Vector2Int.down))
             && IsOpen(Get(cell + Vector2Int.left)) && IsOpen(Get(cell + Vector2Int.right));
+
+        /// <summary>
+        /// Anillo de pared de las salas (§3): tierra (Solid) a 2 casillas o menos de una casilla Room, que no se puede excavar.
+        /// Las zonas de acceso (bloque 3×3 justo fuera de cada puerta) no son pared.
+        /// </summary>
+        public bool IsRoomWall(Vector2Int cell)
+        {
+            if (Get(cell) != CellType.Solid || InAccessZone(cell)) return false;
+            for (int dy = -RoomWallThickness; dy <= RoomWallThickness; dy++)
+                for (int dx = -RoomWallThickness; dx <= RoomWallThickness; dx++)
+                    if (Get(new Vector2Int(cell.x + dx, cell.y + dy)) == CellType.Room) return true;
+            return false;
+        }
+
+        // A 1–3 casillas en horizontal de la primera o última columna de una sala, en sus 3 filas inferiores (las de la puerta).
+        private bool InAccessZone(Vector2Int cell)
+        {
+            for (int side = -1; side <= 1; side += 2)
+                for (int d = 1; d <= DoorSize; d++)
+                {
+                    var door = new Vector2Int(cell.x + side * d, cell.y);
+                    if (Get(door) != CellType.Room) continue;
+                    if (Get(new Vector2Int(door.x, door.y - DoorSize)) != CellType.Room) return true;
+                    break;   // la primera casilla de sala de este lado decide
+                }
+            return false;
+        }
 
         /// <summary>Suelo bajo un punto: borde de arriba de la primera casilla cerrada por debajo. Dentro de tierra devuelve el punto tal cual.</summary>
         public Vector3 FloorPoint(Vector3 world)

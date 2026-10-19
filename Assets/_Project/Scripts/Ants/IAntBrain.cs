@@ -28,6 +28,12 @@ namespace Myrmutation.Ants
         void Suspend();
         void Resume();
 
+        /// <summary>
+        /// El último intento de ir a algún sitio falló por falta de camino.
+        /// Se quita en cuanto vuelve a encontrar ruta (o se queda sin sitio al que ir). Lo usa AntStatusBubble (B7).
+        /// </summary>
+        bool HasNoPath { get; }
+
         /// <summary>Decide ya, sin esperar al siguiente ciclo.</summary>
         void Think();
 

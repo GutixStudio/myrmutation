@@ -855,6 +855,7 @@ GameObject:
   - component: {fileID: 7176778729409643398}
   - component: {fileID: 3018113998250975264}
   - component: {fileID: 2092484361194478946}
+  - component: {fileID: 5817264093115302847}
   m_Layer: 0
   m_Name: Ant
   m_TagString: Untagged
@@ -1008,3 +1009,15 @@ MonoBehaviour:
   maxOffsetY: 0.08
   useSortingGroup: 1
   baseSortingOrder: 10
+--- !u!114 &5817264093115302847
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8864650367434385086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: de820d73698c4cb5a7fe4f076f11ea32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

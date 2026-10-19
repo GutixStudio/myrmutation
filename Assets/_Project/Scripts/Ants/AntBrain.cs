@@ -54,6 +54,7 @@ namespace Myrmutation.Ants
         public BrainStep Step { get; private set; } = BrainStep.None;
         public string StateName => $"{Goal}/{Step}";
         public bool IsSuspended { get; private set; }
+        public bool HasNoPath { get; private set; }
 
         public event Action<BrainGoal, BrainStep> StateChanged;
 
@@ -112,6 +113,7 @@ namespace Myrmutation.Ants
             if (IsSuspended) return;
             if (needs.IsResting) needs.StopRest();
             IsSuspended = true;
+            HasNoPath = false;
             SetStep(BrainStep.Waiting);
         }
 
@@ -171,6 +173,7 @@ namespace Myrmutation.Ants
             // Sin sala (o es la reina): espera quieta.
             if (assigned == null || !needs.CanWork)
             {
+                HasNoPath = false;   // no va a ningún sitio: no hay camino que buscar
                 if (Step != BrainStep.Waiting) { actuator.Stop(); workRoom = null; SetStep(BrainStep.Waiting); }
                 return;
             }
@@ -244,11 +247,12 @@ namespace Myrmutation.Ants
 
         private void GoTo(Vector3 destination)
         {
-            if (sensor.IsAt(destination)) { Arrive(); return; }
+            if (sensor.IsAt(destination)) { HasNoPath = false; Arrive(); return; }
 
-            if (actuator.MoveTo(destination)) { SetStep(BrainStep.Moving); return; }
+            if (actuator.MoveTo(destination)) { HasNoPath = false; SetStep(BrainStep.Moving); return; }
 
             // Sin camino: esperar y reintentar.
+            HasNoPath = true;
             if (Goal == BrainGoal.Eat) { GiveUpEating(); return; }
             waitUntil = Time.time + retryDelay;
             SetStep(BrainStep.Waiting);

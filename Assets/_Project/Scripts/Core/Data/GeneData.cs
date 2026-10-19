@@ -10,6 +10,8 @@ namespace Myrmutation.Core.Data
         public string id;
         public string displayName;
         [TextArea] public string description;
+        [Tooltip("Resumen corto y legible del efecto, para el log y los paneles (p. ej. \"+50 % velocidad, se cansa antes\")")]
+        public string shortEffect;
         [Tooltip("Origen: especie o evento del que procede")]
         public string origin;
         public Sprite icon;

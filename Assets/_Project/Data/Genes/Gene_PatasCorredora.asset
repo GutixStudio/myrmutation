@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Patas de corredora
   description: "Patas largas y nerviosas: corre un 50 % m\xE1s r\xE1pido, pero se
     cansa un 25 % antes."
+  shortEffect: +50 % velocidad, se cansa antes
   origin: 'Presa: hormiga del desierto (Cataglyphis)'
   icon: {fileID: -9095717837082945937, guid: 5df087a1305038747bab8b723fa70c4f, type: 3}
   isFlaw: 0

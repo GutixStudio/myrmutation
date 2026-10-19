@@ -39,6 +39,8 @@ namespace Myrmutation.Ants
         [SerializeField] private Image geneIconTemplate;
         [Tooltip("Opcional: texto que se muestra si no tiene genes")]
         [SerializeField] private GameObject noGenesLabel;
+        [Tooltip("Opcional: texto donde se muestra el efecto del gen al tocar su icono")]
+        [SerializeField] private TMP_Text geneInfoText;
 
         [Header("Necesidades (Image con Image Type = Filled)")]
         [SerializeField] private Image hungerFill;
@@ -215,6 +217,7 @@ namespace Myrmutation.Ants
             geneIcons.Clear();
             shownGenes.Clear();
             shownGenes.AddRange(ant.Genes);
+            if (geneInfoText != null) geneInfoText.text = "";
 
             if (geneIconTemplate != null && geneContainer != null)
                 foreach (var gene in ant.Genes)
@@ -227,10 +230,23 @@ namespace Myrmutation.Ants
                     else icon.color = gene.tint;   // sin icono: un cuadro del color del gen
                     var label = icon.GetComponentInChildren<TMP_Text>(true);   // opcional: nombre bajo el icono
                     if (label != null) label.text = gene.displayName;
+                    var button = icon.GetComponent<Button>();
+                    if (button == null) button = icon.gameObject.AddComponent<Button>();
+                    button.targetGraphic = icon;
+                    var shownGene = gene;
+                    button.onClick.AddListener(() => ShowGeneInfo(shownGene));
                     geneIcons.Add(icon.gameObject);
                 }
 
             if (noGenesLabel != null) noGenesLabel.SetActive(geneIcons.Count == 0);
+        }
+
+        private void ShowGeneInfo(GeneData gene)
+        {
+            if (geneInfoText == null || gene == null) return;
+            geneInfoText.text = string.IsNullOrEmpty(gene.shortEffect)
+                ? gene.displayName
+                : gene.displayName + ": " + gene.shortEffect;
         }
 
         // ================= ASIGNAR A SALA =================

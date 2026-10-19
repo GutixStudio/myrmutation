@@ -811,6 +811,7 @@ MonoBehaviour:
   roomSortingOrder: 3
   allowWithoutAnts: 1
   testStrength: 3
+  requireMinWorkersOnSite: 1
 --- !u!4 &1193929811
 Transform:
   m_ObjectHideFlags: 0
@@ -1285,6 +1286,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8206043701161156377, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
+      propertyPath: startEnergy
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8206043701161156377, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
+      propertyPath: startHunger
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8864650367434385086, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
       propertyPath: m_Name
       value: Ant
@@ -1494,6 +1503,26 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2743245703383430902, guid: a130494fe5cfdbd47b86322649666e44, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3248096128539388408, guid: a130494fe5cfdbd47b86322649666e44, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3248096128539388408, guid: a130494fe5cfdbd47b86322649666e44, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3248096128539388408, guid: a130494fe5cfdbd47b86322649666e44, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3248096128539388408, guid: a130494fe5cfdbd47b86322649666e44, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3248096128539388408, guid: a130494fe5cfdbd47b86322649666e44, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}

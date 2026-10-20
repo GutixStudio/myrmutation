@@ -18,8 +18,8 @@ namespace Myrmutation.Building
         public const int ChunkSize = 3;
 
         // §3: anillo de pared alrededor de las salas y alto de las puertas (= ancho de la zona de acceso).
-        private const int RoomWallThickness = 2;
-        private const int DoorSize = 3;
+        public const int RoomWallThickness = 2;
+        public const int DoorSize = 3;
 
         public static NestGrid Instance { get; private set; }
 
@@ -169,15 +169,18 @@ namespace Myrmutation.Building
         /// </summary>
         public bool IsRoomWall(Vector2Int cell)
         {
-            if (Get(cell) != CellType.Solid || InAccessZone(cell)) return false;
+            if (Get(cell) != CellType.Solid || IsAccessZone(cell)) return false;
             for (int dy = -RoomWallThickness; dy <= RoomWallThickness; dy++)
                 for (int dx = -RoomWallThickness; dx <= RoomWallThickness; dx++)
                     if (Get(new Vector2Int(cell.x + dx, cell.y + dy)) == CellType.Room) return true;
             return false;
         }
 
-        // A 1–3 casillas en horizontal de la primera o última columna de una sala, en sus 3 filas inferiores (las de la puerta).
-        private bool InAccessZone(Vector2Int cell)
+        /// <summary>
+        /// Zona de acceso de una sala ya hecha (Room): a 1–3 casillas en horizontal de su primera o última columna,
+        /// en sus 3 filas inferiores (las de la puerta).
+        /// </summary>
+        public bool IsAccessZone(Vector2Int cell)
         {
             for (int side = -1; side <= 1; side += 2)
                 for (int d = 1; d <= DoorSize; d++)

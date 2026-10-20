@@ -108,6 +108,27 @@ namespace Myrmutation.Tests
         }
 
         [Test]
+        public void DosSalasQueCompartenZonaDeAccesoSeUnenPorElla()
+        {
+            // Salas 21 × 12 en x 3..23 y x 27..47 (y 3..14), separadas solo por la zona común x 24..26, y 3..5.
+            // La fila de nodos de las dos es la y = 4.
+            var a = new RectInt(3, 3, 21, 12);
+            var b = new RectInt(27, 3, 21, 12);
+            foreach (var room in new[] { a, b })
+                foreach (var c in room.allPositionsWithin) grid.Set(c, CellType.Room);
+            foreach (var c in new RectInt(24, 3, 3, 3).allPositionsWithin) grid.Set(c, CellType.Dug);
+
+            Assert.IsTrue(nav.TryGetPath(At(13, 9), At(37, 9), path, GridNavigator.PathStage.Pulled));
+            Assert.IsTrue(a.Contains(grid.WorldToCell(path[0])), "la ruta no sale de la sala A");
+            Assert.IsTrue(b.Contains(grid.WorldToCell(path[path.Count - 1])), "la ruta no acaba en la sala B");
+            foreach (var p in path)
+            {
+                Vector2Int c = grid.WorldToCell(p);
+                if (grid.Get(c) == CellType.Room) Assert.AreEqual(4, c.y, $"{p} está en una sala fuera de su fila");
+            }
+        }
+
+        [Test]
         public void MapaInicialLlegaALasTresSalasPorSuFilaCentral()
         {
             // Salas del mapa inicial: suelo en y = 39, así que su fila de nodos es la y = 40.
@@ -123,6 +144,27 @@ namespace Myrmutation.Tests
                 }
                 Assert.AreEqual(CellType.Room, grid.Get(grid.WorldToCell(path[path.Count - 1])), $"la ruta no acaba dentro de {room}");
             }
+        }
+
+        [Test]
+        public void RutaQueLlegaBajandoPorUnPozoAcabaEnGroundPoint()
+        {
+            Paint(new Vector2Int(10, 30), new Vector2Int(10, 6));
+            AssertEndsAtGroundPoint(At(10, 30), At(10, 8));
+        }
+
+        [Test]
+        public void RutaQueLlegaEnDiagonalAcabaEnGroundPoint()
+        {
+            Paint(new Vector2Int(6, 6), new Vector2Int(30, 30));
+            AssertEndsAtGroundPoint(At(6, 6), At(30, 30));
+        }
+
+        private void AssertEndsAtGroundPoint(Vector3 from, Vector3 to)
+        {
+            Assert.IsTrue(nav.Nearest(to, out var goal));
+            Assert.IsTrue(nav.TryGetPath(from, to, path));
+            Assert.Less(Vector3.Distance(path[path.Count - 1], nav.GroundPoint(goal)), 1e-5f);
         }
 
         [Test]

@@ -17,6 +17,8 @@ namespace Myrmutation.Building
     ///   (lo usan la construcción y la selección de hormigas).
     /// - Ignora los toques que empiezan sobre la UI.
     /// - No deja que la cámara salga del mapa (NestGrid) o, en la alfa, del sprite de fondo (bounds).
+    /// Con ToolMode (modo herramienta, §5): el clic izquierdo y un dedo son de la herramienta; la cámara se mueve con el
+    /// clic derecho o la rueda pulsada y con dos dedos, y no se lanza Tapped.
     /// </summary>
     [RequireComponent(typeof(Camera))]
     public class CameraController : MonoBehaviour
@@ -24,8 +26,19 @@ namespace Myrmutation.Building
         /// <summary>Toque o clic sin arrastrar, en coordenadas de mundo.</summary>
         public static event Action<Vector2> Tapped;
 
-        /// <summary>Si es true, arrastrar no mueve la cámara (para el modo pintar túneles de la beta).</summary>
-        public static bool BlockPan;
+        /// <summary>
+        /// Modo herramienta (pintar planos, §5): el clic izquierdo y un dedo no mueven la cámara.
+        /// Se mueve con clic derecho o rueda pulsada (arrastrar) y con dos dedos; la rueda y el pellizco hacen zoom.
+        /// </summary>
+        public static bool ToolMode { get; set; }
+
+        // Sin recarga de dominio (Enter Play Mode Options) lo estático sobrevive entre partidas.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetStatics()
+        {
+            ToolMode = false;
+            Tapped = null;
+        }
 
         [Header("Límites")]
         [Tooltip("Solo si no hay NestGrid (escenas de la alfa): la cámara nunca muestra nada fuera de este sprite")]
@@ -43,7 +56,7 @@ namespace Myrmutation.Building
         [SerializeField] private bool debugTaps;
 
         private Camera cam;
-        private bool pressing, dragging, pinching;
+        private bool pressing, dragging, pinching, wasToolMode;
         private Vector2 pressScreenPos;
         private Vector3 grabWorld;
         private float lastPinchDist;
@@ -61,6 +74,14 @@ namespace Myrmutation.Building
 
         private void LateUpdate()
         {
+            // Al cambiar de modo a mitad de gesto, la pulsación sería del botón equivocado: se cancela.
+            if (ToolMode != wasToolMode)
+            {
+                wasToolMode = ToolMode;
+                pressing = false;
+                dragging = false;
+            }
+
             if (Touch.activeTouches.Count > 0)
             {
                 lastTouchTime = Time.unscaledTime;
@@ -84,6 +105,16 @@ namespace Myrmutation.Building
             float scroll = mouse.scroll.ReadValue().y;
             if (Mathf.Abs(scroll) > 0.01f && !IsOverUI(pos))
                 ZoomAt(pos, cam.orthographicSize * (1f - Mathf.Sign(scroll) * wheelStep));
+
+            if (ToolMode)
+            {
+                bool held = mouse.rightButton.isPressed || mouse.middleButton.isPressed;
+                bool pressed = mouse.rightButton.wasPressedThisFrame || mouse.middleButton.wasPressedThisFrame;
+                if (!pressing && pressed && !IsOverUI(pos)) BeginPress(pos);
+                else if (pressing && held) DragTo(pos);
+                if (pressing && !held) EndPress(pos);
+                return;
+            }
 
             if (mouse.leftButton.wasPressedThisFrame && !IsOverUI(pos)) BeginPress(pos);
             else if (pressing && mouse.leftButton.isPressed) DragTo(pos);
@@ -119,6 +150,7 @@ namespace Myrmutation.Building
             }
 
             pinching = false;
+            if (ToolMode) return;   // un dedo es de la herramienta
             var t = touches[0];
             Vector2 pos = t.screenPosition;
             switch (t.phase)
@@ -152,13 +184,13 @@ namespace Myrmutation.Building
         private void DragTo(Vector2 screenPos)
         {
             if (!dragging && (screenPos - pressScreenPos).magnitude > dragThresholdPx) dragging = true;
-            if (dragging && !BlockPan)
+            if (dragging)
                 transform.position += grabWorld - ScreenToWorld(screenPos);
         }
 
         private void EndPress(Vector2 screenPos)
         {
-            if (!dragging)
+            if (!dragging && !ToolMode)
             {
                 Vector2 world = ScreenToWorld(screenPos);
                 if (debugTaps) Debug.Log($"[Camera] Tap en {world}");

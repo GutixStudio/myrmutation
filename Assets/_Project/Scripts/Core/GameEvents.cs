@@ -18,6 +18,7 @@ namespace Myrmutation.Core
     public struct GeneInherited { public CasteType Caste; public GeneData Gene; public GeneInherited(CasteType c, GeneData g) { Caste = c; Gene = g; } }
     public struct CellDug { public Vector2Int Cell; public CellDug(Vector2Int c) { Cell = c; } }
     public struct BuildPlanned { public RoomData Room; public Vector2Int Origin; public BuildPlanned(RoomData r, Vector2Int o) { Room = r; Origin = o; } }   // Room = null para túneles
+    public struct RoomDug { public RoomData Room; public Vector2Int Origin; public RoomDug(RoomData r, Vector2Int o) { Room = r; Origin = o; } }   // huella excavada entera; A10 pone el prefab
 
     // ---------- E11 · Registro de eventos (EventLog) ----------
     // Cualquier sistema puede contar algo al jugador: EventBus.Publish(new LogMessage(LogCategory.Mutacion, "Texto", hormiga.transform));

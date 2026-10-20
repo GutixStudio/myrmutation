@@ -63,7 +63,8 @@ Dentro de una sala terminada, las hormigas caminan por el **suelo** (8 px por en
 ## 4. Excavar
 - **Plano:** casillas marcadas para excavar (con el pincel) o la huella de una sala.
 - **Bloques de trabajo:** el mapa se divide en bloques fijos de 3 × 3 casillas (0,75 u). Excavar casilla a casilla serían miles de trabajos minúsculos; el bloque es la unidad que se reserva, se trabaja y se ve avanzar.
-- **Bloque trabajable:** tiene casillas en plano y algún bloque vecino (4 direcciones) con casillas excavadas transitables y alcanzables.
+- **Bloque trabajable:** tiene casillas en plano y hay un nodo alcanzable a ≤ 2 casillas (Chebyshev) de alguna de ellas. La obrera se pone en el `GroundPoint` de ese nodo (el más cercano a las casillas en plano del bloque). Los bloques de sala, además, necesitan la condición de las salas (punto siguiente). *(Cambiado en A8, ver decisiones.md.)*
+- **Hormigas no alcanzables:** `TryClaim` devuelve false sin reservar nada si el nodo más cercano a la hormiga no es alcanzable (atrapada en tierra o en una sala sin salida). *(Cambiado en A8, ver decisiones.md.)*
 - **Salas:** se empiezan solo desde sus zonas de acceso; después avanzan por sus propios bloques ya excavados. Si ninguna zona de acceso está excavada ni en plano, la sala muestra **"Sin acceso"**.
 - **Coste de un bloque** = (casillas en plano del bloque / 9) × 1,5 × estrato (tierra ×1, arcilla ×1,33, roca ×2). Un bloque completo de tierra lo excava una Media (fuerza 1) en 1,5 s.
 - **Hasta 2 obreras por bloque** (sus fuerzas se suman). Sin esto, un túnel largo lo excavaría una sola hormiga, porque su frente solo tiene un bloque.

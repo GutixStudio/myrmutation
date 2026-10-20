@@ -13,7 +13,8 @@ namespace Myrmutation.Building
 
         /// <summary>
         /// Reserva para 'ant' el bloque trabajable más cercano (le suma una obrera).
-        /// False si no hay ninguno; entonces 'job' es null.
+        /// False si no hay ninguno o si la hormiga no conecta con la colonia (atrapada en tierra o en una sala sin salida):
+        /// entonces no reserva nada y 'job' es null.
         /// </summary>
         bool TryClaim(Ant ant, out DigJob job);
     }

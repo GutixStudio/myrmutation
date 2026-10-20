@@ -48,6 +48,10 @@ namespace Myrmutation.Building
         [Tooltip("Altura sobre la posición de la hormiga a la que se mira la casilla (los pies van justo en el borde del suelo)")]
         [SerializeField] private float stuckProbeHeight = 0.1f;
 
+        [Header("Alcance")]
+        [Tooltip("Casilla de la colonia desde la que se mide qué está conectado (el pozo). Si no es nodo, se usa el más cercano")]
+        [SerializeField] private Vector2Int reachRootCell = new Vector2Int(60, 40);
+
         private const float DiagonalCost = 1.41421356f;
         private static readonly int[] DirX = { 1, -1, 0, 0, 1, 1, -1, -1 };
         private static readonly int[] DirY = { 0, 0, 1, -1, 1, -1, 1, -1 };
@@ -60,6 +64,11 @@ namespace Myrmutation.Building
         private float[] g, f;
         private int[] parent, seenGen, closedGen, heap, heapPos;
         private int heapCount, generation;
+
+        // Alcance desde reachRootCell: relleno que se rehace al preguntar si ha cambiado alguna casilla.
+        private bool[] reachable;
+        private int[] reachQueue;
+        private bool reachDirty = true;
 
         private readonly Dictionary<long, Vector3[]> cache = new Dictionary<long, Vector3[]>();
         private readonly List<int> cellPath = new List<int>();
@@ -142,15 +151,16 @@ namespace Myrmutation.Building
         }
 
         /// <summary>
-        /// Nodo más cercano a un punto (si el punto está dentro de tierra, el del hueco más próximo).
-        /// False si no hay ninguno a menos de nearestMaxRadius casillas.
+        /// Nodo cuyo GroundPoint está más cerca de un punto (si el punto está dentro de tierra, el del hueco más próximo).
+        /// Así un GroundPoint (donde acaban las rutas y se paran las hormigas) da su propio nodo y no el de debajo,
+        /// que en pozos y huecos anchos también es nodo. False si no hay ninguno a menos de nearestMaxRadius casillas.
         /// </summary>
         public bool Nearest(Vector3 world, out Vector2Int node)
         {
             node = default;
             if (!EnsureBuilt()) return false;
 
-            Vector2Int c = grid.WorldToCell(world);
+            Vector2Int c = grid.WorldToCell(world + Vector3.up * lowerAmount);
             c.x = Mathf.Clamp(c.x, 0, width - 1);
             c.y = Mathf.Clamp(c.y, 0, height - 1);
 
@@ -180,6 +190,17 @@ namespace Myrmutation.Building
         public bool IsNode(Vector2Int cell) =>
             EnsureBuilt() && InGrid(cell.x, cell.y) && isNode[cell.y * width + cell.x];
 
+        /// <summary>Punto donde acaba toda ruta que llega a este nodo: su centro bajado lowerAmount.</summary>
+        public Vector3 GroundPoint(Vector2Int node) => grid.CellToWorld(node) + Vector3.down * lowerAmount;
+
+        /// <summary>El nodo está conectado con la colonia (reachRootCell) por nodos.</summary>
+        public bool IsReachable(Vector2Int node)
+        {
+            if (!IsNode(node)) return false;
+            if (reachDirty) FloodReachable();
+            return reachable[node.y * width + node.x];
+        }
+
         // ================= NODOS =================
 
         private bool EnsureBuilt()
@@ -199,6 +220,8 @@ namespace Myrmutation.Building
             closedGen = new int[n];
             heap = new int[n];
             heapPos = new int[n];
+            reachable = new bool[n];
+            reachQueue = new int[n];
 
             for (int y = 0; y < height; y++)
                 for (int x = 0; x < width; x++)
@@ -209,6 +232,7 @@ namespace Myrmutation.Building
         private void OnCellChanged(Vector2Int cell)
         {
             cache.Clear();
+            reachDirty = true;
             if (isNode == null) return;
             // La holgura mira las 4 vecinas y la regla de las salas mira 2 casillas hacia abajo.
             for (int y = cell.y - 1; y <= cell.y + 2; y++)
@@ -232,6 +256,37 @@ namespace Myrmutation.Building
                     return y <= surfaceRow + grassCenterOffset && grid.HasClearance(c);
                 default:
                     return false;
+            }
+        }
+
+        /// <summary>
+        /// Relleno en 4 direcciones desde la raíz con las mismas reglas que el A* (en las salas, solo en horizontal).
+        /// Las diagonales no hacen falta: el A* solo las usa si sus dos ortogonales son nodo.
+        /// </summary>
+        private void FloodReachable()
+        {
+            reachDirty = false;
+            System.Array.Clear(reachable, 0, reachable.Length);
+            if (!Nearest(grid.CellToWorld(reachRootCell), out var root)) return;
+
+            int head = 0, tail = 0;
+            reachQueue[tail++] = Index(root);
+            reachable[Index(root)] = true;
+            while (head < tail)
+            {
+                int cur = reachQueue[head++];
+                int cx = cur % width, cy = cur / width;
+                bool curRoom = grid.Get(new Vector2Int(cx, cy)) == CellType.Room;
+                for (int d = 0; d < 4; d++)
+                {
+                    int nx = cx + DirX[d], ny = cy + DirY[d];
+                    if (!InGrid(nx, ny)) continue;
+                    int nb = ny * width + nx;
+                    if (!isNode[nb] || reachable[nb]) continue;
+                    if (DirY[d] != 0 && (curRoom || grid.Get(new Vector2Int(nx, ny)) == CellType.Room)) continue;
+                    reachable[nb] = true;
+                    reachQueue[tail++] = nb;
+                }
             }
         }
 
@@ -428,7 +483,10 @@ namespace Myrmutation.Building
             CopyTempTo(points);
         }
 
-        /// <summary>Baja cada punto lowerAmount × horizontalidad^lowerExponent (por el suelo en lo llano, por el centro en las cuestas).</summary>
+        /// <summary>
+        /// Baja cada punto lowerAmount × horizontalidad^lowerExponent (por el suelo en lo llano, por el centro en las cuestas).
+        /// El último se baja lowerAmount entero: toda ruta acaba en GroundPoint del nodo destino.
+        /// </summary>
         private void LowerToFloor(List<Vector3> points)
         {
             int last = points.Count - 1;
@@ -437,6 +495,7 @@ namespace Myrmutation.Building
             {
                 Vector3 t = points[Mathf.Min(i + 1, last)] - points[Mathf.Max(i - 1, 0)];
                 float h = t.sqrMagnitude > 1e-8f ? Mathf.Abs(t.x) / t.magnitude : 1f;   // un solo punto: como si fuera llano
+                if (i == last) h = 1f;   // el final siempre en GroundPoint, se llegue como se llegue (ahí espera DigJob.StandPosition)
                 temp.Add(points[i] + Vector3.down * (lowerAmount * Mathf.Pow(h, lowerExponent)));
             }
             CopyTempTo(points);
@@ -488,7 +547,7 @@ namespace Myrmutation.Building
                 if (!suspects.Contains(ant)) { nextSuspects.Add(ant); continue; }
 
                 if (!Nearest(pos, out var node)) continue;
-                Vector3 p = grid.CellToWorld(node) + Vector3.down * lowerAmount;
+                Vector3 p = GroundPoint(node);
                 p.z = pos.z;
                 ant.transform.position = p;
             }

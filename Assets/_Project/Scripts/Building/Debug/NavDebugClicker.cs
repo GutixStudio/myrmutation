@@ -1,13 +1,17 @@
 using Myrmutation.Ants;
 using Myrmutation.Core;
+using Myrmutation.Core.Data;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace Myrmutation.Building
 {
     /// <summary>
-    /// Prueba de A7 (escena Test_A7). Clic izquierdo: todas las hormigas van a ese punto.
+    /// Prueba de A7 y A8 (escenas Test_A7 y Test_A8). Clic izquierdo: todas las hormigas van a ese punto.
     /// Clic derecho: excava un círculo (para comprobar que la caché de rutas se vacía), sin tocar la pared de las salas.
+    /// Con planificador (A8): mientras Shift está pulsado la cámara va en modo herramienta (CameraController.ToolMode):
+    /// arrastrar con clic izquierdo pinta plano de túnel, mantener E lo borra bajo el ratón y el clic derecho mueve la vista.
+    /// R planifica la sala de prueba en el ratón (el motivo del rechazo sale en la consola).
     /// </summary>
     public class NavDebugClicker : MonoBehaviour
     {
@@ -15,12 +19,26 @@ namespace Myrmutation.Building
         [Tooltip("Radio del círculo que excava el clic derecho, en casillas")]
         [SerializeField] private float digRadius = 1.5f;
 
+        [Header("Planos (A8)")]
+        [Tooltip("Planificador de excavación. Vacío = sin pintar planos (como en Test_A7)")]
+        [SerializeField] private DigPlanner planner;
+        [Tooltip("Sala que se planifica con la tecla R (la Guardería)")]
+        [SerializeField] private RoomData testRoom;
+        [Tooltip("Radio del pincel, en casillas")]
+        [SerializeField] private float brushRadius = 1.5f;
+
         private Camera cam;
+        private Vector3 lastStroke;
 
         private void Start()
         {
             cam = Camera.main;
             if (grid == null) grid = NestGrid.Instance;
+        }
+
+        private void OnDisable()
+        {
+            if (planner != null) CameraController.ToolMode = false;
         }
 
         private void Update()
@@ -29,6 +47,25 @@ namespace Myrmutation.Building
             if (mouse == null || cam == null || grid == null) return;
 
             Vector3 world = cam.ScreenToWorldPoint(mouse.position.ReadValue());
+            var keyboard = Keyboard.current;
+            if (planner != null && keyboard != null)
+            {
+                if (keyboard.rKey.wasPressedThisFrame && testRoom != null)
+                {
+                    var result = planner.PlanRoom(testRoom, grid.WorldToCell(world));
+                    if (result != RoomPlanResult.Ok) Debug.Log($"[NavDebugClicker] Sala rechazada: {DigPlanner.Describe(result)}", this);
+                }
+                // Con Shift la cámara pasa a modo herramienta: el izquierdo pinta y el derecho mueve la vista.
+                CameraController.ToolMode = keyboard.shiftKey.isPressed;
+                if (CameraController.ToolMode)
+                {
+                    if (mouse.leftButton.wasPressedThisFrame) lastStroke = world;
+                    if (mouse.leftButton.isPressed) { planner.PaintStroke(lastStroke, world, brushRadius); lastStroke = world; }
+                    if (keyboard.eKey.isPressed) planner.Erase(world, brushRadius);
+                    return;
+                }
+            }
+
             if (mouse.leftButton.wasPressedThisFrame) SendAll(world);
             if (mouse.rightButton.wasPressedThisFrame) Dig(grid.WorldToCell(world));
         }

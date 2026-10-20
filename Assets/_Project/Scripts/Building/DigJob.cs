@@ -30,8 +30,13 @@ namespace Myrmutation.Building
         /// <summary>Avance del bloque, de 0 (sin empezar) a 1 (terminado).</summary>
         public float Progress { get; private set; }
 
-        /// <summary>True cuando Progress ha llegado a 1.</summary>
-        public bool IsDone => Progress >= 1f;
+        /// <summary>True cuando Progress ha llegado a 1 o el planificador lo ha cancelado (se quedó sin plano). Las obreras lo sueltan igual.</summary>
+        public bool IsDone => cancelled || Progress >= 1f;
+
+        private bool cancelled;
+
+        /// <summary>Lo llama solo el planificador cuando el bloque deja de tener casillas en plano (Erase, CancelRoom…).</summary>
+        internal void Cancel() => cancelled = true;
 
         /// <summary>Obreras que tienen reservado ahora mismo este bloque (0..MaxWorkers).</summary>
         public int Workers => (workerA != null ? 1 : 0) + (workerB != null ? 1 : 0);

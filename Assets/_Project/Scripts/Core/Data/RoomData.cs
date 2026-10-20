@@ -16,6 +16,8 @@ namespace Myrmutation.Core.Data
         public int minWorkers = 2;
         [Tooltip("Puntos de trabajo necesarios (se reducen con la suma de fuerza por segundo)")]
         public float workCost = 30f;
+        [Tooltip("Huella en casillas finas (ancho × alto). Múltiplos de 3: la sala ocupa bloques enteros")]
+        public Vector2Int footprint = new Vector2Int(21, 12);
 
         [Header("Uso")]
         public int workerCapacity = 4;

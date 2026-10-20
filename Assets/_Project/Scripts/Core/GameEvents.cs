@@ -18,4 +18,10 @@ namespace Myrmutation.Core
     public struct GeneInherited { public CasteType Caste; public GeneData Gene; public GeneInherited(CasteType c, GeneData g) { Caste = c; Gene = g; } }
     public struct CellDug { public Vector2Int Cell; public CellDug(Vector2Int c) { Cell = c; } }
     public struct BuildPlanned { public RoomData Room; public Vector2Int Origin; public BuildPlanned(RoomData r, Vector2Int o) { Room = r; Origin = o; } }   // Room = null para túneles
+
+    // ---------- E11 · Registro de eventos (EventLog) ----------
+    // Cualquier sistema puede contar algo al jugador: EventBus.Publish(new LogMessage(LogCategory.Mutacion, "Texto", hormiga.transform));
+    // Focus es opcional: si se indica, tocar el mensaje centra la cámara en ese objeto.
+    public enum LogCategory { Info, Nacimiento, Muerte, Construccion, Mutacion, Expedicion, Aviso, Estacion }
+    public struct LogMessage { public LogCategory Category; public string Text; public Transform Focus; public LogMessage(LogCategory c, string t, Transform f = null) { Category = c; Text = t; Focus = f; } }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Myrmutation.Core;
 using Myrmutation.Core.Data;
@@ -15,8 +16,9 @@ namespace Myrmutation.Building
     /// Planos de excavación y trabajos por bloques 3×3 (diseno-construccion-beta.md §3 y §4). Implementa IDigJobs.
     /// Plano = casillas Solid marcadas con el pincel o huellas de sala. Un bloque es trabajable si hay un nodo alcanzable
     /// desde la colonia a StandReach casillas o menos (Chebyshev) de alguna de sus casillas en plano; los de sala, además,
-    /// solo si tienen al lado su zona de acceso excavada o otro bloque suyo ya excavado. El trabajo se crea al reservarlo
-    /// y vacía sus casillas en Update, de la más cercana a la obrera a la más lejana.
+    /// solo si tienen al lado su zona de acceso excavada o otro bloque suyo ya excavado. Los bloques se reparten entre las
+    /// obreras que piden (Assign), el trabajo se crea al repartirlo y vacía sus casillas en Update, de la más cercana a la
+    /// obrera a la más lejana.
     /// </summary>
     public class DigPlanner : MonoBehaviour, IDigJobs
     {
@@ -35,6 +37,12 @@ namespace Myrmutation.Building
         [Tooltip("Subida del coste de las salas por cada sala ya construida (0,25 = +25 %)")]
         [SerializeField] private float roomCostIncrease = 0.25f;
 
+        [Header("Reparto")]
+        [Tooltip("Segundos (sin escala) entre repartos de bloques a las obreras libres. También se reparte en el frame siguiente si cambia el plano, se termina o cancela un bloque o pide una obrera nueva")]
+        [SerializeField] private float assignInterval = 0.5f;
+
+        // Coste mínimo de un bloque si los datos lo dejan en 0 o menos (workCost 0): DigJob no admite coste 0.
+        private const float MinCost = 0.01f;
         private const int ChunkCells = NestGrid.ChunkSize * NestGrid.ChunkSize;
         // §4: distancia máxima (Chebyshev) del nodo de la obrera a una casilla en plano del bloque.
         private const int StandReach = 2;
@@ -54,9 +62,18 @@ namespace Myrmutation.Building
             public DigJob Dig;
             public int Chunk;
             public PlannedRoom Room;
+            public Vector2Int Stand;
             // Casillas a vaciar, de la más cercana a la obrera a la más lejana.
             public readonly Vector2Int[] Order = new Vector2Int[ChunkCells];
             public int Count, Applied;
+        }
+
+        // Bloque con hueco en un reparto: con trabajo (Job) o trabajable aún sin él (Chunk, Stand).
+        private struct Candidate
+        {
+            public Job Job;
+            public int Chunk, Slots;
+            public Vector2Int Stand;
         }
 
         // Invariante: una casilla en plano siempre es Solid (al cambiar de tipo sale del plano).
@@ -73,6 +90,34 @@ namespace Myrmutation.Building
         private readonly List<(int chunk, Vector2Int stand)> workable = new List<(int, Vector2Int)>();
         private bool workableDirty = true;
         private int roomsBuilt;
+
+        // Reparto: cuándo pidió trabajo por última vez cada obrera libre (sin escala) y qué le guardó el último reparto.
+        private readonly Dictionary<Ant, float> askers = new Dictionary<Ant, float>();
+        private readonly Dictionary<Ant, Job> offers = new Dictionary<Ant, Job>();
+        private readonly List<Ant> free = new List<Ant>();
+        private readonly List<Vector2Int> freeNodes = new List<Vector2Int>();
+        private readonly List<Ant> stale = new List<Ant>();
+        private readonly List<Candidate> candidates = new List<Candidate>();
+        private readonly List<int> routeSteps = new List<int>();   // pasos de cada candidato a cada obrera libre
+        private readonly HashSet<RoomData> warnedCost = new HashSet<RoomData>();
+        private float assignTimer;
+        private bool assignDirty;
+
+        // Copia del plano al entrar en el modo Construcción (BeginEdit), para poder cancelar.
+        private bool[] savedPlanned;
+        private readonly List<PlannedRoom> savedRooms = new List<PlannedRoom>();
+
+        /// <summary>Una casilla entra o sale del plano (para el dibujo del plano azul).</summary>
+        public event Action<Vector2Int> PlannedChanged;
+
+        /// <summary>Hay una edición abierta (entre BeginEdit y Commit o Revert).</summary>
+        public bool Editing { get; private set; }
+
+        /// <summary>Bloques con alguna casilla en plano.</summary>
+        public int PlannedChunks => plannedChunks.Count;
+
+        /// <summary>Salas planificadas, terminadas o no (para las etiquetas de obra).</summary>
+        public int RoomCount => rooms.Count;
 
         private void Awake() => Digging.Current = this;
 
@@ -97,6 +142,9 @@ namespace Myrmutation.Building
             // Hacia atrás: Apply puede quitar su propio trabajo de la lista.
             for (int i = active.Count - 1; i >= 0; i--)
                 if (i < active.Count) Apply(active[i]);
+
+            assignTimer += Time.unscaledDeltaTime;
+            if (assignDirty || assignTimer >= assignInterval) Assign();
         }
 
         // ================= CONTRATO =================
@@ -114,42 +162,106 @@ namespace Myrmutation.Building
         }
 
         /// <summary>
-        /// Reserva el bloque más cercano por distancia en línea recta de la hormiga a StandPosition.
-        /// False sin reservar nada si el nodo más cercano a la hormiga no conecta con la colonia (atrapada en tierra o en una sala sin salida).
-        /// shortcut: euclídea, puede elegir un bloque al otro lado de una pared; pasar a distancia de ruta si B6 lo nota.
+        /// Devuelve el bloque sin terminar que ya tiene la hormiga o reserva el que le guardó el último reparto (Assign).
+        /// Si no, la apunta como libre para el siguiente y devuelve false. También false, sin apuntarla, si el nodo más
+        /// cercano a la hormiga no conecta con la colonia (atrapada en tierra o en una sala sin salida).
         /// </summary>
         public bool TryClaim(Ant ant, out DigJob job)
         {
             job = null;
-            if (ant == null || !HasWork) return false;
-            if (!navigator.Nearest(ant.transform.position, out var node) || !navigator.IsReachable(node)) return false;
-            RefreshWorkable();   // HasWork puede salir antes de rehacerla
-
-            Vector2 pos = ant.transform.position;
-            float best = float.MaxValue;
-            Job bestJob = null;
-            int bestChunk = -1;
-            Vector2Int bestStand = default;
+            if (ant == null || !EnsureBuilt()) return false;
+            // La que ya excava un bloque sigue con él aunque aparezca otro más cerca.
             for (int i = 0; i < active.Count; i++)
+                if (active[i].Dig.HasWorker(ant) && !active[i].Dig.IsDone) { job = active[i].Dig; return true; }
+            if (!navigator.Nearest(ant.transform.position, out var node) || !navigator.IsReachable(node)) return false;
+
+            if (!askers.ContainsKey(ant)) assignDirty = true;   // obrera nueva: se reparte en el frame siguiente
+            askers[ant] = Time.unscaledTime;
+            if (!offers.TryGetValue(ant, out var offer)) return false;
+            offers.Remove(ant);
+            if (!offer.Dig.Claim(ant)) return false;   // cancelado o terminado desde el reparto: sigue libre
+            askers.Remove(ant);
+            job = offer.Dig;
+            return true;
+        }
+
+        /// <summary>
+        /// Reparte los bloques con hueco entre las obreras libres (han pedido hace poco y no tienen bloque): cada vez, el par
+        /// bloque–obrera más cercano por ruta (pasos de una búsqueda en anchura desde el sitio de la obrera del bloque),
+        /// hasta MaxWorkers por bloque. Lo guardado caduca en el siguiente reparto si la obrera no lo recoge con TryClaim.
+        /// shortcut: una búsqueda por bloque candidato en cada reparto con obreras libres; si hay muchos bloques en plano,
+        /// buscar desde las obreras cuando sean menos que los bloques.
+        /// </summary>
+        private void Assign()
+        {
+            assignTimer = 0f;
+            assignDirty = false;
+            if (!EnsureBuilt()) return;
+
+            // Las que no han recogido lo suyo dejan de estar libres hasta que vuelvan a pedir: su hueco se reparte de nuevo.
+            foreach (var pair in offers) askers.Remove(pair.Key);
+            offers.Clear();
+
+            free.Clear();
+            freeNodes.Clear();
+            stale.Clear();
+            float now = Time.unscaledTime;
+            foreach (var pair in askers)
             {
-                if (!active[i].Dig.CanClaim) continue;
-                float d = ((Vector2)active[i].Dig.StandPosition - pos).sqrMagnitude;
-                if (d < best) { best = d; bestJob = active[i]; }
+                // Sin pedir en dos repartos seguidos: B6 le ha dado otra tarea (o ha muerto).
+                if (pair.Key != null && now - pair.Value <= assignInterval * 2f && navigator.Nearest(pair.Key.transform.position, out var node))
+                {
+                    free.Add(pair.Key);
+                    freeNodes.Add(node);
+                }
+                else stale.Add(pair.Key);
             }
+            for (int i = 0; i < stale.Count; i++) askers.Remove(stale[i]);
+            if (free.Count == 0) return;
+
+            RefreshWorkable();
+            candidates.Clear();
+            for (int i = 0; i < active.Count; i++)
+                if (active[i].Dig.CanClaim)
+                    candidates.Add(new Candidate { Job = active[i], Stand = active[i].Stand, Slots = DigJob.MaxWorkers - active[i].Dig.Workers });
             for (int i = 0; i < workable.Count; i++)
+                candidates.Add(new Candidate { Chunk = workable[i].chunk, Stand = workable[i].stand, Slots = DigJob.MaxWorkers });
+            if (candidates.Count == 0) return;
+
+            int n = free.Count;
+            routeSteps.Clear();
+            for (int c = 0; c < candidates.Count; c++)
             {
-                float d = ((Vector2)navigator.GroundPoint(workable[i].stand) - pos).sqrMagnitude;
-                if (d < best) { best = d; bestJob = null; bestChunk = workable[i].chunk; bestStand = workable[i].stand; }
+                navigator.FloodSteps(candidates[c].Stand);
+                for (int a = 0; a < n; a++) routeSteps.Add(navigator.StepsTo(freeNodes[a]));
             }
 
-            if (bestJob == null)
+            // Cada vuelta quita una obrera o cierra un bloque, así que termina.
+            while (true)
             {
-                if (bestChunk < 0) return false;
-                bestJob = CreateJob(bestChunk, bestStand);
+                int best = int.MaxValue, bc = -1, ba = -1;
+                for (int c = 0; c < candidates.Count; c++)
+                {
+                    if (candidates[c].Slots == 0) continue;
+                    for (int a = 0; a < n; a++)
+                    {
+                        int s = routeSteps[c * n + a];
+                        if (free[a] != null && s >= 0 && s < best) { best = s; bc = c; ba = a; }
+                    }
+                }
+                if (bc < 0) return;
+
+                Candidate cand = candidates[bc];
+                if (cand.Job == null) cand.Job = CreateJob(cand.Chunk, cand.Stand);
+                if (cand.Job == null) cand.Slots = 0;   // se quedó sin casillas en plano
+                else
+                {
+                    cand.Slots--;
+                    offers[free[ba]] = cand.Job;
+                    free[ba] = null;
+                }
+                candidates[bc] = cand;
             }
-            if (!bestJob.Dig.Claim(ant)) return false;   // ya lo tenía reservado
-            job = bestJob.Dig;
-            return true;
         }
 
         // ================= PLANOS =================
@@ -167,18 +279,34 @@ namespace Myrmutation.Building
         /// <summary>Marca el trazo de a a b estampando el pincel cada media casilla.</summary>
         public void PaintStroke(Vector3 a, Vector3 b, float radiusCells = 1.5f)
         {
-            if (!EnsureBuilt()) return;
-            int steps = Mathf.CeilToInt(Vector2.Distance(a, b) / grid.CellSize * 2f);
-            bool any = false;
-            for (int s = 0; s <= steps; s++)
-                any |= Stamp(Vector3.Lerp(a, b, steps == 0 ? 0f : s / (float)steps), radiusCells, true);
-            if (any) EventBus.Publish(new BuildPlanned(null, grid.WorldToCell(b)));
+            if (EnsureBuilt() && Stroke(a, b, radiusCells, true))
+                EventBus.Publish(new BuildPlanned(null, grid.WorldToCell(b)));
         }
 
         /// <summary>Quita del plano un círculo de túnel (no toca las salas, que se quitan con CancelRoom). No rellena lo excavado.</summary>
         public void Erase(Vector3 center, float radiusCells = 1.5f)
         {
             if (EnsureBuilt()) Stamp(center, radiusCells, false);
+        }
+
+        /// <summary>Como Erase, a lo largo del trazo de a a b (cada media casilla).</summary>
+        public void EraseStroke(Vector3 a, Vector3 b, float radiusCells = 1.5f)
+        {
+            if (EnsureBuilt()) Stroke(a, b, radiusCells, false);
+        }
+
+        /// <summary>El pincel de túnel puede marcar la casilla: tierra Solid fuera del anillo y la huella de las salas.</summary>
+        public bool CanPaint(Vector2Int c) =>
+            EnsureBuilt() && InGrid(c) && grid.Get(c) == CellType.Solid && !grid.IsRoomWall(c)
+            && PlannedRoomPart(c) is Part.None or Part.Access;
+
+        private bool Stroke(Vector3 a, Vector3 b, float radius, bool paint)
+        {
+            int steps = Mathf.CeilToInt(Vector2.Distance(a, b) / grid.CellSize * 2f);
+            bool any = false;
+            for (int s = 0; s <= steps; s++)
+                any |= Stamp(Vector3.Lerp(a, b, steps == 0 ? 0f : s / (float)steps), radius, paint);
+            return any;
         }
 
         private bool Stamp(Vector3 world, float radius, bool paint)
@@ -192,11 +320,10 @@ namespace Myrmutation.Building
                 {
                     var c = new Vector2Int(center.x + dx, center.y + dy);
                     if (((Vector2)(grid.CellToWorld(c) - world) / grid.CellSize).sqrMagnitude > r2 || !InGrid(c)) continue;
-                    bool allowed = paint
-                        ? grid.Get(c) == CellType.Solid && !grid.IsRoomWall(c) && PlannedRoomPart(c) is Part.None or Part.Access
-                        : roomOfChunk[ChunkIndex(c)] == null;
+                    bool allowed = paint ? CanPaint(c) : roomOfChunk[ChunkIndex(c)] == null;
                     if (allowed) changed |= SetPlanned(c, paint);
                 }
+            assignDirty |= changed;
             return changed;
         }
 
@@ -206,8 +333,38 @@ namespace Myrmutation.Building
         /// </summary>
         public RoomPlanResult PlanRoom(RoomData data, Vector2Int origin)
         {
+            RoomPlanResult result = CheckRoom(data, origin);
+            if (result != RoomPlanResult.Ok) return result;
+            RectInt rect = RoomRect(data, origin);
+            RectInt left = AccessZone(rect, -1), right = AccessZone(rect, 1);
+            RectInt outer = Grow(rect, NestGrid.RoomWallThickness);
+
+            var room = new PlannedRoom { Data = data, Rect = rect };
+            rooms.Add(room);
+            foreach (var c in outer.allPositionsWithin)
+            {
+                if (left.Contains(c) || right.Contains(c) || !InGrid(c)) continue;
+                if (rect.Contains(c))
+                {
+                    int k = ChunkIndex(c);
+                    if (roomOfChunk[k] == null) { RemoveJob(k); roomOfChunk[k] = room; }
+                }
+                SetPlanned(c, rect.Contains(c));   // la huella entra en plano; el túnel en plano del anillo sale
+            }
+            assignDirty = true;
+            EventBus.Publish(new BuildPlanned(data, rect.position));
+            return RoomPlanResult.Ok;
+        }
+
+        /// <summary>Huella que tendría la sala con su esquina en 'origin' (redondeada hacia abajo a bloques, como PlanRoom).</summary>
+        public static RectInt RoomRect(RoomData data, Vector2Int origin) =>
+            new RectInt(Snap(origin.x), Snap(origin.y), data.footprint.x, data.footprint.y);
+
+        /// <summary>Lo que devolvería PlanRoom, sin planificar nada (para el fantasma de A9).</summary>
+        public RoomPlanResult CheckRoom(RoomData data, Vector2Int origin)
+        {
             if (data == null || !EnsureBuilt()) return RoomPlanResult.OutOfTerrain;
-            var rect = new RectInt(Snap(origin.x), Snap(origin.y), data.footprint.x, data.footprint.y);
+            RectInt rect = RoomRect(data, origin);
             RectInt left = AccessZone(rect, -1), right = AccessZone(rect, 1);
 
             RectInt outer = Grow(rect, NestGrid.RoomWallThickness);
@@ -227,22 +384,14 @@ namespace Myrmutation.Building
                     if (t == CellType.Dug) return RoomPlanResult.TooCloseToTunnel;
                 }
             }
-            if (!AccessFree(left) || !AccessFree(right)) return RoomPlanResult.AccessBlocked;
+            return AccessFree(left) && AccessFree(right) ? RoomPlanResult.Ok : RoomPlanResult.AccessBlocked;
+        }
 
-            var room = new PlannedRoom { Data = data, Rect = rect };
-            rooms.Add(room);
-            foreach (var c in outer.allPositionsWithin)
-            {
-                if (left.Contains(c) || right.Contains(c) || !InGrid(c)) continue;
-                if (rect.Contains(c))
-                {
-                    int k = ChunkIndex(c);
-                    if (roomOfChunk[k] == null) { RemoveJob(k); roomOfChunk[k] = room; }
-                }
-                SetPlanned(c, rect.Contains(c));   // la huella entra en plano; el túnel en plano del anillo sale
-            }
-            EventBus.Publish(new BuildPlanned(data, rect.position));
-            return RoomPlanResult.Ok;
+        /// <summary>Sala i (0 a RoomCount - 1): sus datos y su huella. Su estado sale de TryGetRoomState(rect.position).</summary>
+        public void GetRoom(int i, out RoomData data, out RectInt rect)
+        {
+            data = rooms[i].Data;
+            rect = rooms[i].Rect;
         }
 
         private bool AccessFree(RectInt zone)
@@ -266,7 +415,71 @@ namespace Myrmutation.Building
                 roomOfChunk[ChunkIndex(c)] = null;
                 SetPlanned(c, false);
             }
+            assignDirty = true;
             return true;
+        }
+
+        // ================= EDICIÓN (modo Construcción) =================
+
+        /// <summary>Guarda una copia del plano (casillas y salas) para poder volver a ella con Revert.</summary>
+        public void BeginEdit()
+        {
+            if (!EnsureBuilt()) return;
+            if (savedPlanned == null || savedPlanned.Length != planned.Length) savedPlanned = new bool[planned.Length];
+            Array.Copy(planned, savedPlanned, planned.Length);
+            savedRooms.Clear();
+            savedRooms.AddRange(rooms);
+            Editing = true;
+        }
+
+        /// <summary>Se queda con el plano actual.</summary>
+        public void Commit()
+        {
+            Editing = false;
+            savedRooms.Clear();
+        }
+
+        /// <summary>
+        /// Vuelve al plano guardado en BeginEdit. Lo excavado mientras tanto no se rellena (sus casillas ya no vuelven
+        /// al plano) y las salas terminadas mientras tanto se quedan.
+        /// </summary>
+        public void Revert()
+        {
+            if (!Editing) return;
+            Editing = false;
+            for (int i = rooms.Count - 1; i >= 0; i--)
+            {
+                PlannedRoom r = rooms[i];
+                if (r.Done || savedRooms.Contains(r)) continue;
+                AssignRoomChunks(r, null);
+                rooms.RemoveAt(i);
+            }
+            foreach (PlannedRoom r in savedRooms)
+            {
+                if (!rooms.Contains(r)) rooms.Add(r);
+                if (!r.Done) AssignRoomChunks(r, r);
+            }
+            savedRooms.Clear();
+
+            for (int i = 0; i < planned.Length; i++)
+            {
+                var c = new Vector2Int(i % width, i / width);
+                SetPlanned(c, savedPlanned[i] && grid.Get(c) == CellType.Solid);
+            }
+            workableDirty = true;
+            assignDirty = true;
+        }
+
+        private void AssignRoomChunks(PlannedRoom room, PlannedRoom value)
+        {
+            foreach (var c in room.Rect.allPositionsWithin)
+            {
+                if (!InGrid(c)) continue;
+                int k = ChunkIndex(c);
+                if (roomOfChunk[k] == value) continue;
+                RemoveJob(k);
+                roomOfChunk[k] = value;
+            }
         }
 
         /// <summary>Estado de la sala planificada en 'origin' (el mismo que se pasó a PlanRoom). False si no hay ninguna.</summary>
@@ -331,6 +544,7 @@ namespace Myrmutation.Building
                 RemoveJob(k);
             }
             workableDirty = true;
+            PlannedChanged?.Invoke(c);
             return true;
         }
 
@@ -415,7 +629,7 @@ namespace Myrmutation.Building
         private Job CreateJob(int k, Vector2Int stand)
         {
             Vector2Int chunk = ChunkCoord(k);
-            var job = new Job { Chunk = k, Room = roomOfChunk[k] };
+            var job = new Job { Chunk = k, Room = roomOfChunk[k], Stand = stand };
             for (int y = 0; y < NestGrid.ChunkSize; y++)
                 for (int x = 0; x < NestGrid.ChunkSize; x++)
                 {
@@ -426,12 +640,24 @@ namespace Myrmutation.Building
                     for (; i > 0 && (job.Order[i - 1] - stand).sqrMagnitude > d; i--) job.Order[i] = job.Order[i - 1];
                     job.Order[i] = c;
                 }
+            if (job.Count == 0)
+            {
+                workableDirty = true;   // la caché de trabajables iba por detrás del plano
+                return null;
+            }
 
             float cost = job.Room != null
                 ? job.Room.Data.workCost * (1f + roomCostIncrease * roomsBuilt)
                   / (job.Room.Rect.width / NestGrid.ChunkSize * (job.Room.Rect.height / NestGrid.ChunkSize))
                 : job.Count / (float)ChunkCells * tunnelChunkCost;
             cost *= StratumMultiplier(grid.StratumAt(chunk * NestGrid.ChunkSize));
+            if (cost <= 0f)
+            {
+                RoomData data = job.Room?.Data;
+                if (warnedCost.Add(data))
+                    Debug.LogWarning($"[DigPlanner] El bloque de {(data != null ? data.name : "túnel")} cuesta {cost} (¿workCost o tunnelChunkCost a 0?): se usa {MinCost}.", data);
+                cost = MinCost;
+            }
             bool facingRight = chunk.x * NestGrid.ChunkSize + 1 >= stand.x;
             job.Dig = new DigJob(chunk, navigator.GroundPoint(stand), facingRight, cost);
 
@@ -448,6 +674,7 @@ namespace Myrmutation.Building
             jobs.Remove(k);
             active.Remove(job);
             workableDirty = true;
+            assignDirty = true;   // sus obreras quedan libres
         }
 
         /// <summary>Vacía las casillas que tocan según Progress y, si el trabajo era de sala, mira si la sala ya está entera.</summary>

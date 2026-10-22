@@ -239,7 +239,8 @@ namespace Myrmutation.Building
             return w;
         }
 
-        private static bool IsOverUI(Vector2 screenPos)
+        /// <summary>El punto de pantalla está sobre la UI (también lo usa el modo Construcción).</summary>
+        public static bool IsOverUI(Vector2 screenPos)
         {
             var es = EventSystem.current;
             if (es == null) return false;

@@ -108,6 +108,19 @@ namespace Myrmutation.Tests
         }
 
         [Test]
+        public void SalaConTunelEnElTechoYSinPuertaUnida_NoEsAlcanzable()
+        {
+            // Sala 21 × 12 en x 5..25, y 5..16 (fila de nodos y = 6) y un pozo x 14..16 desde su techo hasta la hierba.
+            foreach (var c in new RectInt(5, 5, 21, 12).allPositionsWithin) grid.Set(c, CellType.Room);
+            foreach (var c in new RectInt(14, 17, 3, 61).allPositionsWithin) grid.Set(c, CellType.Dug);
+
+            Assert.IsTrue(nav.Nearest(At(15, 40), out var shaftNode));
+            Assert.IsTrue(nav.IsReachable(shaftNode), "el pozo conecta con la colonia por la hierba");
+            Assert.IsFalse(nav.IsReachable(new Vector2Int(15, 6)), "la sala no se alcanza por el techo");
+            Assert.IsFalse(nav.TryGetPath(At(15, 6), At(15, 40), path));
+        }
+
+        [Test]
         public void DosSalasQueCompartenZonaDeAccesoSeUnenPorElla()
         {
             // Salas 21 × 12 en x 3..23 y x 27..47 (y 3..14), separadas solo por la zona común x 24..26, y 3..5.

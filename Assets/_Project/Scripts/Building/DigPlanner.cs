@@ -569,7 +569,8 @@ namespace Myrmutation.Building
 
         /// <summary>
         /// Busca un nodo alcanzable a StandReach casillas o menos (Chebyshev) de alguna casilla en plano del bloque: el más
-        /// cercano a ellas y, a igualdad, al centro del bloque. Ahí se pone la obrera. No mira bloques vecinos enteros porque
+        /// cercano a ellas y, a igualdad, al centro del bloque. Ahí se pone la obrera; en los de túnel, nunca dentro de la
+        /// huella de una sala en plano. No mira bloques vecinos enteros porque
         /// los túneles del pincel casi nunca van alineados con los bloques de 3.
         /// </summary>
         private bool IsWorkable(int k, out Vector2Int stand)
@@ -596,6 +597,8 @@ namespace Myrmutation.Building
                 {
                     var n = new Vector2Int(x, y);
                     if (!navigator.IsReachable(n)) continue;
+                    // Un bloque de túnel no pone a su obrera en la huella de una sala en plano: al terminarla, ahí ya no hay nodo.
+                    if (room == null && roomOfChunk[ChunkIndex(n)] != null) continue;
                     int near = int.MaxValue;
                     for (int cy = 0; cy < NestGrid.ChunkSize; cy++)
                         for (int cx = 0; cx < NestGrid.ChunkSize; cx++)

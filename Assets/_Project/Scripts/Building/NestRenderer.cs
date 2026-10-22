@@ -80,11 +80,12 @@ namespace Myrmutation.Building
             if (whiteSprite != null) Destroy(whiteSprite);
         }
 
-        // Una casilla toca las 4 piezas que tienen una esquina en su centro.
+        // Una casilla toca las 4 piezas que tienen una esquina en su centro. También se repintan las de sus vecinas en
+        // horizontal, porque si son puerta de sala su hueco depende de esta casilla (ver IsHollow).
         private void OnCellChanged(Vector2Int c)
         {
             for (int dy = 0; dy <= 1; dy++)
-                for (int dx = 0; dx <= 1; dx++)
+                for (int dx = -1; dx <= 2; dx++)
                     tilemap.SetTile(new Vector3Int(c.x + dx, c.y + dy, 0), TileAt(c.x + dx, c.y + dy));
         }
 
@@ -96,11 +97,14 @@ namespace Myrmutation.Building
             return tiles[mask];
         }
 
-        // Para el dibujo la superficie cuenta como cerrada: si no, se pintaría túnel sobre el cielo.
+        // Para el dibujo la superficie cuenta como cerrada: si no, se pintaría túnel sobre el cielo. Las salas las dibuja su
+        // prefab (§3); de ellas solo es hueco la casilla de puerta con túnel al lado, para que el túnel llegue hasta la sala.
+        // Por el anillo de pared, una casilla Room con Dug en horizontal solo puede ser de puerta.
         private bool IsHollow(int x, int y)
         {
             CellType t = nest.Get(new Vector2Int(x, y));
-            return t == CellType.Dug || t == CellType.Room;
+            return t == CellType.Dug
+                || (t == CellType.Room && (nest.Get(new Vector2Int(x - 1, y)) == CellType.Dug || nest.Get(new Vector2Int(x + 1, y)) == CellType.Dug));
         }
 
         // Una franja por cada tramo de filas seguidas con el mismo fondo (cielo, tierra, arcilla, roca).

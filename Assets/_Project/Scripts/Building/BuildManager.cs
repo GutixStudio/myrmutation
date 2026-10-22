@@ -37,6 +37,8 @@ namespace Myrmutation.Building
         [SerializeField] private float rockSpeed = 0.5f;
 
         [Header("Obreras")]
+        [Tooltip("Constructoras mínimas para empezar cualquier sala (antes RoomData.minWorkers; la alfa se quita en A12)")]
+        [SerializeField] private int minBuilders = 2;
         [Tooltip("Constructoras extra que se reclutan por encima del mínimo, si hay libres")]
         [SerializeField] private int extraBuilders = 2;
 
@@ -55,6 +57,7 @@ namespace Myrmutation.Building
 
         private int roomsBuilt;
 
+        public int MinBuilders => minBuilders;
         public Sprite SquareSprite => squareSprite;
         public bool AllowWithoutAnts => allowWithoutAnts;
         public bool RequireMinWorkersOnSite => requireMinWorkersOnSite;
@@ -106,7 +109,7 @@ namespace Myrmutation.Building
             if (zone == null || data == null || !zone.IsFree) return null;
             var room = CreateRoom(zone, data);
             var site = room.gameObject.AddComponent<ConstructionSite>();
-            site.Init(this, room, CostFor(data), SpeedFor(zone.Stratum), data.minWorkers, data.minWorkers + extraBuilders);
+            site.Init(this, room, CostFor(data), SpeedFor(zone.Stratum), minBuilders, minBuilders + extraBuilders);
             roomsBuilt++;
             return room;
         }

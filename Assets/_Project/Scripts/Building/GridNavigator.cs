@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Myrmutation.Ants;
 using Myrmutation.Core;
 using UnityEngine;
 
@@ -568,8 +569,28 @@ namespace Myrmutation.Building
         // ================= HORMIGAS DENTRO DE TIERRA =================
 
         /// <summary>
-        /// Recoloca en el nodo más cercano a las hormigas que salen dentro de tierra en dos comprobaciones seguidas
-        /// (en una sola puede ser un redondeo). Las dos listas se reutilizan, sin reservar memoria.
+        /// La hormiga en 'world' está dentro de una sala (casilla Room a la altura de la sonda) pero no en su fila de nodos
+        /// (la 2.ª desde abajo, donde acaban todas las rutas de la sala). 'floor' es el GroundPoint de ese nodo en su
+        /// columna, con la z de 'world'.
+        /// </summary>
+        public bool OffRoomFloor(Vector3 world, out Vector3 floor)
+        {
+            floor = world;
+            if (!EnsureBuilt()) return false;
+            Vector2Int c = grid.WorldToCell(world + Vector3.up * stuckProbeHeight);
+            if (!InGrid(c.x, c.y) || grid.Get(c) != CellType.Room || isNode[c.y * width + c.x]) return false;
+
+            while (grid.Get(new Vector2Int(c.x, c.y - 1)) == CellType.Room) c.y--;
+            // Toda la fila de encima de la inferior es nodo, así que el más cercano en x es el de su misma columna.
+            floor = GroundPoint(new Vector2Int(c.x, c.y + 1));
+            floor.z = world.z;
+            return true;
+        }
+
+        /// <summary>
+        /// Recoloca a las hormigas que salen dentro de tierra (en el nodo más cercano) o dentro de una sala fuera de su
+        /// fila de nodos (en el suelo de la sala, OffRoomFloor) en dos comprobaciones seguidas (en una sola puede ser un
+        /// redondeo); si iba andando, recalcula la ruta. Las dos listas se reutilizan, sin reservar memoria.
         /// </summary>
         private void CheckStuckAnts()
         {
@@ -580,14 +601,22 @@ namespace Myrmutation.Building
                 if (ant == null || !ant.isActiveAndEnabled || !ant.IsAlive) continue;
                 Vector3 pos = ant.transform.position;
                 Vector2Int c = grid.WorldToCell(pos + Vector3.up * stuckProbeHeight);
-                // Fuera de la rejilla (expediciones) o en un hueco: nada que hacer.
-                if (!InGrid(c.x, c.y) || NestGrid.IsOpen(grid.Get(c))) continue;
+                // Fuera de la rejilla (expediciones) o en un hueco que no es una sala a media altura: nada que hacer.
+                if (!InGrid(c.x, c.y)) continue;
+                bool offFloor = OffRoomFloor(pos, out var floor);
+                if (!offFloor && NestGrid.IsOpen(grid.Get(c))) continue;
                 if (!suspects.Contains(ant)) { nextSuspects.Add(ant); continue; }
 
-                if (!Nearest(pos, out var node)) continue;
-                Vector3 p = GroundPoint(node);
-                p.z = pos.z;
-                ant.transform.position = p;
+                if (!offFloor)
+                {
+                    if (!Nearest(pos, out var node)) continue;
+                    floor = GroundPoint(node);
+                    floor.z = pos.z;
+                }
+                ant.transform.position = floor;
+                // Su ruta salía de donde estaba: la recalcula desde el sitio nuevo.
+                if (ant.TryGetComponent<AntActuator>(out var actuator) && actuator.Current == AntAction.Moving)
+                    actuator.MoveTo(actuator.Destination);
             }
             (suspects, nextSuspects) = (nextSuspects, suspects);
         }

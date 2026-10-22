@@ -38,6 +38,7 @@ namespace Myrmutation.Building
         {
             Clear();
             int free = FreeWorkers();
+            int minBuilders = BuildManager.Instance != null ? BuildManager.Instance.MinBuilders : 0;
             bool testMode = Ant.All.Count == 0 && BuildManager.Instance != null && BuildManager.Instance.AllowWithoutAnts;
             if (title != null) title.text = $"Construir en {zone.ZoneId} · {StratumName(zone.Stratum)}\n<size=70%>Obreras libres: {free}</size>";
 
@@ -50,13 +51,13 @@ namespace Myrmutation.Building
                 if (label != null)
                 {
                     float cost = BuildManager.Instance != null ? BuildManager.Instance.CostFor(opt) : opt.workCost;
-                    label.text = $"{opt.displayName}\n<size=70%>{opt.minWorkers} obreras · {Mathf.RoundToInt(cost)} de trabajo</size>";
+                    label.text = $"{opt.displayName}\n<size=70%>{minBuilders} obreras · {Mathf.RoundToInt(cost)} de trabajo</size>";
                 }
-                bool enough = testMode || free >= opt.minWorkers;
+                bool enough = testMode || free >= minBuilders;
                 b.interactable = enough;
                 if (!enough && label != null)
                 {
-                    int missing = opt.minWorkers - free;
+                    int missing = minBuilders - free;
                     label.text = $"{opt.displayName}\n<size=70%><color=#E06050>Faltan {missing} obrera{(missing == 1 ? "" : "s")} libre{(missing == 1 ? "" : "s")}</color></size>";
                 }
                 var picked = opt;

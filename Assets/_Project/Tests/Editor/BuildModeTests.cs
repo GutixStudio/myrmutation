@@ -27,6 +27,7 @@ namespace Myrmutation.Tests
         {
             go = new GameObject("BuildMode (test)");
             grid = go.AddComponent<NestGrid>();
+            Call(grid, "Reset");   // RoomData de las salas iniciales
             Call(grid, "Awake");
             nav = go.AddComponent<GridNavigator>();
             Call(nav, "Awake");

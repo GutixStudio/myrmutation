@@ -12,6 +12,7 @@ namespace Myrmutation.Building
     /// Con planificador (A8): mientras Shift está pulsado la cámara va en modo herramienta (CameraController.ToolMode):
     /// arrastrar con clic izquierdo pinta plano de túnel, mantener E lo borra bajo el ratón y el clic derecho mueve la vista.
     /// R planifica la sala de prueba en el ratón (el motivo del rechazo sale en la consola).
+    /// Sin planificador, con la cámara en modo herramienta (modo Construcción, A9) no hace nada.
     /// </summary>
     public class NavDebugClicker : MonoBehaviour
     {
@@ -47,6 +48,7 @@ namespace Myrmutation.Building
             if (mouse == null || cam == null || grid == null) return;
 
             Vector3 world = cam.ScreenToWorldPoint(mouse.position.ReadValue());
+            world.z = 0f;   // ScreenToWorldPoint da la z de la cámara
             var keyboard = Keyboard.current;
             if (planner != null && keyboard != null)
             {
@@ -66,6 +68,8 @@ namespace Myrmutation.Building
                 }
             }
 
+            // Con el modo Construcción abierto los clics son de la herramienta: si no, cada trazo mandaría a todas las hormigas.
+            if (CameraController.ToolMode) return;
             if (mouse.leftButton.wasPressedThisFrame) SendAll(world);
             if (mouse.rightButton.wasPressedThisFrame) Dig(grid.WorldToCell(world));
         }

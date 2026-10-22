@@ -18,6 +18,7 @@ MonoBehaviour:
     mutantes para heredar sus genes."
   sprite: {fileID: -2506521090240236606, guid: ab1febc32b51c924697fd3a5be887b3b, type: 3}
   icon: {fileID: 0}
+  buildable: 0
   minWorkers: 0
   workCost: 0
   footprint: {x: 27, y: 15}

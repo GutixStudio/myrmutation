@@ -87,12 +87,34 @@ namespace Myrmutation.Tests
             PaintChunk(7, 10);   // x 21–23, y 30–32: entre él y el pozo queda el bloque x 24–26 sin excavar
             var ant = NewAnt(22, 31);
             Assert.IsFalse(planner.HasWork);
-            Assert.IsFalse(planner.TryClaim(ant, out _));
+            Assert.IsFalse(Claim(ant, out _));
 
             Dig(new RectInt(24, 30, 3, 3));
             Assert.IsTrue(planner.HasWork);
-            Assert.IsTrue(planner.TryClaim(ant, out var job));
+            Assert.IsTrue(Claim(ant, out var job));
             Assert.AreEqual(new Vector2Int(7, 10), job.Chunk);
+        }
+
+        [Test]
+        public void HormigasAtrapadasMasCercanas_NoRecibenTrabajo_YLasConectadasLoExcavanEntero()
+        {
+            Shaft();
+            PaintChunk(10, 4);                      // x 30–32, y 12–14, pegado al pozo
+            Dig(new RectInt(36, 10, 9, 3));         // bolsa sin unir a nada, a 3 casillas del bloque
+            var trapped = new[] { NewAnt(37, 11), NewAnt(38, 11) };
+            var connected = new[] { NewAnt(28, 40), NewAnt(28, 45) };
+
+            foreach (var ant in trapped) Assert.IsFalse(Claim(ant, out _), $"{ant.name} está atrapada");
+            Assert.IsTrue(Claim(connected[0], out var job));
+            Assert.IsTrue(Claim(connected[1], out var second));
+            Assert.AreSame(job, second, "las dos conectadas comparten el bloque");
+            Assert.AreEqual(new Vector2Int(10, 4), job.Chunk);
+            foreach (var ant in trapped) Assert.IsFalse(Claim(ant, out _));
+
+            job.Work(2f, 10f);
+            Tick();
+            Assert.IsTrue(job.IsDone);
+            foreach (var c in new RectInt(30, 12, 3, 3).allPositionsWithin) Assert.AreEqual(CellType.Dug, grid.Get(c), c.ToString());
         }
 
         [Test]
@@ -104,7 +126,7 @@ namespace Myrmutation.Tests
             Assert.AreEqual(3f, ClaimCost(10, 4), Eps, "roca");
 
             planner.PaintBrush(At(30, 67), 0.5f);   // una sola casilla del bloque (10, 22), pegada al pozo
-            Assert.IsTrue(planner.TryClaim(NewAnt(30, 67), out var job));
+            Assert.IsTrue(Claim(NewAnt(30, 67), out var job));
             Assert.AreEqual(new Vector2Int(10, 22), job.Chunk);
             Assert.AreEqual(1.5f / 9f, CostOf(job), Eps, "1 de 9 casillas");
         }
@@ -114,7 +136,7 @@ namespace Myrmutation.Tests
         {
             Shaft();
             PaintChunk(10, 20);   // x 30–32, y 60–62; la obrera se pone en el pozo, en (28, 61)
-            Assert.IsTrue(planner.TryClaim(NewAnt(31, 61), out var job));
+            Assert.IsTrue(Claim(NewAnt(31, 61), out var job));
             Assert.AreEqual(nav.GroundPoint(new Vector2Int(28, 61)), job.StandPosition);
             Assert.IsTrue(job.FacingRight);
 
@@ -144,7 +166,7 @@ namespace Myrmutation.Tests
         {
             Shaft();
             PaintChunk(10, 20);
-            Assert.IsTrue(planner.TryClaim(NewAnt(31, 61), out var job));
+            Assert.IsTrue(Claim(NewAnt(31, 61), out var job));
             job.Work(1f, 0.36f);   // 24 % = 2 casillas de la columna x = 30
             Tick();
 
@@ -200,7 +222,7 @@ namespace Myrmutation.Tests
             EventBus.Subscribe(onDug);
             try
             {
-                for (int i = 0; i < 100 && planner.TryClaim(ant, out var job); i++)
+                for (int i = 0; i < 100 && Claim(ant, out var job); i++)
                 {
                     job.Work(1000f, 1f);
                     Tick();
@@ -222,11 +244,11 @@ namespace Myrmutation.Tests
         {
             Shaft();
             PaintChunk(10, 20);
-            Assert.IsTrue(planner.TryClaim(NewAnt(31, 61), out var a));
-            Assert.IsTrue(planner.TryClaim(NewAnt(31, 61), out var b));
+            Assert.IsTrue(Claim(NewAnt(31, 61), out var a));
+            Assert.IsTrue(Claim(NewAnt(31, 61), out var b));
             Assert.AreSame(a, b);
             Assert.AreEqual(2, a.Workers);
-            Assert.IsFalse(planner.TryClaim(NewAnt(31, 61), out _), "tercera obrera");
+            Assert.IsFalse(Claim(NewAnt(31, 61), out _), "tercera obrera");
 
             a.Work(1f, 0.5f);
             b.Work(1f, 0.5f);
@@ -242,8 +264,8 @@ namespace Myrmutation.Tests
             Dig(new RectInt(24, 60, 3, 3));   // zonas de acceso excavadas
             Dig(new RectInt(24, 3, 3, 3));
 
-            Assert.IsTrue(planner.TryClaim(NewAnt(25, 61), out var soil));
-            Assert.IsTrue(planner.TryClaim(NewAnt(25, 4), out var rock));
+            Assert.IsTrue(Claim(NewAnt(25, 61), out var soil));
+            Assert.IsTrue(Claim(NewAnt(25, 4), out var rock));
             Assert.AreEqual(new Vector2Int(7, 20), soil.Chunk);
             Assert.AreEqual(new Vector2Int(7, 1), rock.Chunk);
             Assert.AreEqual(30f / 28f, CostOf(soil), Eps, "workCost entre 7 × 4 bloques");
@@ -282,9 +304,124 @@ namespace Myrmutation.Tests
             foreach (var c in new RectInt(56, 39, 3, 3).allPositionsWithin) grid.Set(c, CellType.Solid);   // tapa la puerta de la Guardería
             Assert.IsTrue(planner.HasWork);
 
-            Assert.IsFalse(planner.TryClaim(NewAnt(45, 40), out var job));
+            Assert.IsFalse(Claim(NewAnt(45, 40), out var job));
             Assert.IsNull(job);
-            Assert.IsTrue(planner.TryClaim(NewAnt(31, 61), out _), "una hormiga conectada sí lo recibe");
+            Assert.IsTrue(Claim(NewAnt(31, 61), out _), "una hormiga conectada sí lo recibe");
+        }
+
+        [Test]
+        public void SalaConWorkCost0_NoLanza_YAvisaUnaSolaVez()
+        {
+            room.workCost = 0f;
+            Shaft();
+            Assert.AreEqual(RoomPlanResult.Ok, planner.PlanRoom(room, new Vector2Int(3, 60)));
+            Dig(new RectInt(24, 60, 3, 3));   // zona de acceso excavada
+
+            int warnings = 0;
+            Application.LogCallback count = (msg, _, type) => { if (type == LogType.Warning && msg.Contains("workCost")) warnings++; };
+            Application.logMessageReceived += count;
+            try
+            {
+                var ant = NewAnt(25, 61);
+                for (int i = 0; i < 3; i++)
+                {
+                    Assert.IsTrue(Claim(ant, out var job), $"bloque {i}");
+                    job.Work(1f, 1f);
+                    Tick();
+                    job.Release(ant);
+                }
+            }
+            finally { Application.logMessageReceived -= count; }
+            Assert.AreEqual(1, warnings);
+        }
+
+        [Test]
+        public void BloqueSinCasillasEnPlano_NoCreaTrabajo()
+        {
+            Shaft();
+            Assert.IsFalse(planner.IsPlanned(new Vector2Int(31, 61)));   // de paso construye los arrays
+            int chunksX = (grid.Width + NestGrid.ChunkSize - 1) / NestGrid.ChunkSize;
+            var create = typeof(DigPlanner).GetMethod("CreateJob", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNull(create.Invoke(planner, new object[] { 20 * chunksX + 10, new Vector2Int(28, 61) }));
+        }
+
+        [Test]
+        public void Reparto_PorDistanciaDeRuta_NoEnLineaRecta()
+        {
+            Shaft();
+            Dig(new RectInt(36, 58, 3, 20));   // otro pozo hasta la superficie, separado del bloque por la tierra de x 33–35
+            PaintChunk(10, 20);                // x 30–32, y 60–62; la obrera se pone en (28, 61)
+            var near = NewAnt(28, 64);         // 3 pasos
+            var second = NewAnt(28, 72);       // 11 pasos y 11 casillas en línea recta
+            var wall = NewAnt(37, 61);         // 9 casillas en línea recta, pero hay que subir a la superficie y bajar
+            var far = NewAnt(28, 10);          // 51 pasos
+
+            foreach (var ant in new[] { wall, far, second, near }) Assert.IsFalse(planner.TryClaim(ant, out _));
+            Call(planner, "Assign");
+            Assert.IsTrue(planner.TryClaim(near, out var job));
+            Assert.IsTrue(planner.TryClaim(second, out var other));
+            Assert.AreSame(job, other);
+            Assert.IsFalse(planner.TryClaim(wall, out _), "al otro lado de la pared");
+            Assert.IsFalse(planner.TryClaim(far, out _));
+        }
+
+        [Test]
+        public void Reparto_DosBloques_CadaUnoRecibeSusDosMasCercanas()
+        {
+            Shaft();
+            PaintChunk(10, 20);   // y 60–62
+            PaintChunk(10, 4);    // y 12–14
+            var top = new[] { NewAnt(28, 66), NewAnt(28, 55) };
+            var bottom = new[] { NewAnt(28, 18), NewAnt(28, 7) };
+
+            foreach (var ant in new[] { bottom[1], top[1], bottom[0], top[0] }) Assert.IsFalse(planner.TryClaim(ant, out _));
+            Call(planner, "Assign");
+            foreach (var ant in top)
+            {
+                Assert.IsTrue(planner.TryClaim(ant, out var job));
+                Assert.AreEqual(new Vector2Int(10, 20), job.Chunk, ant.transform.position.ToString());
+            }
+            foreach (var ant in bottom)
+            {
+                Assert.IsTrue(planner.TryClaim(ant, out var job));
+                Assert.AreEqual(new Vector2Int(10, 4), job.Chunk, ant.transform.position.ToString());
+            }
+        }
+
+        [Test]
+        public void ObreraExcavando_NoCambiaDeBloque_AlAparecerOtroMasCerca()
+        {
+            Shaft();
+            PaintChunk(10, 4);
+            var ant = NewAnt(28, 61);
+            Assert.IsTrue(Claim(ant, out var job));
+            job.Work(1f, 0.1f);
+
+            PaintChunk(10, 20);   // justo al lado de la obrera
+            Call(planner, "Assign");
+            Assert.IsTrue(planner.TryClaim(ant, out var again));
+            Assert.AreSame(job, again);
+            Assert.AreEqual(1, job.Workers);
+        }
+
+        [Test]
+        public void ObreraElegidaQueNoVuelveAPedir_PierdeElHueco_YLoCogeOtra()
+        {
+            Shaft();
+            PaintChunk(10, 20);
+            var gone = NewAnt(28, 64);      // las dos más cercanas
+            var stays = NewAnt(28, 66);
+            var waiting = NewAnt(28, 72);
+
+            foreach (var ant in new[] { gone, stays, waiting }) Assert.IsFalse(planner.TryClaim(ant, out _));
+            Call(planner, "Assign");
+            Assert.IsTrue(planner.TryClaim(stays, out var job));
+            Assert.IsFalse(planner.TryClaim(waiting, out _), "aún no le toca");
+
+            Call(planner, "Assign");   // 'gone' no ha recogido lo suyo
+            Assert.IsTrue(planner.TryClaim(waiting, out var taken));
+            Assert.AreSame(job, taken);
+            Assert.IsFalse(planner.TryClaim(gone, out _), "llega tarde");
         }
 
         /// <summary>
@@ -337,10 +474,18 @@ namespace Myrmutation.Tests
 
         private void PaintChunk(int cx, int cy) => planner.PaintBrush(At(cx * 3 + 1, cy * 3 + 1));
 
+        // Como una obrera que pide cada frame: la primera llamada la apunta, el reparto le guarda un bloque y la segunda lo recoge.
+        private bool Claim(Ant ant, out DigJob job)
+        {
+            if (planner.TryClaim(ant, out job)) return true;
+            Call(planner, "Assign");
+            return planner.TryClaim(ant, out job);
+        }
+
         private float ClaimCost(int cx, int cy)
         {
             PaintChunk(cx, cy);
-            Assert.IsTrue(planner.TryClaim(NewAnt(cx * 3 + 1, cy * 3 + 1), out var job));
+            Assert.IsTrue(Claim(NewAnt(cx * 3 + 1, cy * 3 + 1), out var job));
             Assert.AreEqual(new Vector2Int(cx, cy), job.Chunk);
             return CostOf(job);
         }

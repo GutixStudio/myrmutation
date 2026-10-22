@@ -12,6 +12,8 @@ namespace Myrmutation.Core.Data
         public Sprite icon;
 
         [Header("Construcción")]
+        [Tooltip("Aparece en el modo Construcción. Desmarcado en la Sala Real, que ya viene en el mapa inicial")]
+        public bool buildable = true;
         [Tooltip("Obreras mínimas asignadas para empezar a construir")]
         public int minWorkers = 2;
         [Tooltip("Puntos de trabajo necesarios (se reducen con la suma de fuerza por segundo)")]

@@ -70,6 +70,10 @@ namespace Myrmutation.Building
         private int[] reachQueue;
         private bool reachDirty = true;
 
+        // Pasos desde el origen de la última FloodSteps. 'stepGen' marca qué entradas son de esa búsqueda (como en el A*).
+        private int[] steps, stepGen;
+        private int stepGeneration;
+
         private readonly Dictionary<long, Vector3[]> cache = new Dictionary<long, Vector3[]>();
         private readonly List<int> cellPath = new List<int>();
         private readonly List<Vector3> scratch = new List<Vector3>();
@@ -201,6 +205,38 @@ namespace Myrmutation.Building
             return reachable[node.y * width + node.x];
         }
 
+        /// <summary>
+        /// Búsqueda en anchura desde 'origin' con las mismas aristas que el A*: guarda cuántos pasos hay hasta cada nodo.
+        /// Se lee con StepsTo hasta la siguiente llamada. Sin reservas de memoria.
+        /// </summary>
+        public void FloodSteps(Vector2Int origin)
+        {
+            stepGeneration++;
+            if (!IsNode(origin)) return;
+
+            // Comparte la cola con FloodReachable: ninguna de las dos llama a la otra.
+            int head = 0, tail = 0, start = Index(origin);
+            stepGen[start] = stepGeneration;
+            steps[start] = 0;
+            reachQueue[tail++] = start;
+            while (head < tail)
+            {
+                int cur = reachQueue[head++];
+                int cx = cur % width, cy = cur / width;
+                for (int d = 0; d < DirX.Length; d++)
+                {
+                    if (!CanStep(cx, cy, d, out int nb) || stepGen[nb] == stepGeneration) continue;
+                    stepGen[nb] = stepGeneration;
+                    steps[nb] = steps[cur] + 1;
+                    reachQueue[tail++] = nb;
+                }
+            }
+        }
+
+        /// <summary>Pasos de la última FloodSteps hasta 'node'; -1 si no llega o aún no se ha llamado.</summary>
+        public int StepsTo(Vector2Int node) =>
+            stepGeneration > 0 && IsNode(node) && stepGen[Index(node)] == stepGeneration ? steps[Index(node)] : -1;
+
         // ================= NODOS =================
 
         private bool EnsureBuilt()
@@ -222,6 +258,8 @@ namespace Myrmutation.Building
             heapPos = new int[n];
             reachable = new bool[n];
             reachQueue = new int[n];
+            steps = new int[n];
+            stepGen = new int[n];
 
             for (int y = 0; y < height; y++)
                 for (int x = 0; x < width; x++)
@@ -259,10 +297,7 @@ namespace Myrmutation.Building
             }
         }
 
-        /// <summary>
-        /// Relleno en 4 direcciones desde la raíz con las mismas reglas que el A* (en las salas, solo en horizontal).
-        /// Las diagonales no hacen falta: el A* solo las usa si sus dos ortogonales son nodo.
-        /// </summary>
+        /// <summary>Relleno desde la raíz con las mismas aristas que el A* (CanStep).</summary>
         private void FloodReachable()
         {
             reachDirty = false;
@@ -276,14 +311,9 @@ namespace Myrmutation.Building
             {
                 int cur = reachQueue[head++];
                 int cx = cur % width, cy = cur / width;
-                bool curRoom = grid.Get(new Vector2Int(cx, cy)) == CellType.Room;
-                for (int d = 0; d < 4; d++)
+                for (int d = 0; d < DirX.Length; d++)
                 {
-                    int nx = cx + DirX[d], ny = cy + DirY[d];
-                    if (!InGrid(nx, ny)) continue;
-                    int nb = ny * width + nx;
-                    if (!isNode[nb] || reachable[nb]) continue;
-                    if (DirY[d] != 0 && (curRoom || grid.Get(new Vector2Int(nx, ny)) == CellType.Room)) continue;
+                    if (!CanStep(cx, cy, d, out int nb) || reachable[nb]) continue;
                     reachable[nb] = true;
                     reachQueue[tail++] = nb;
                 }
@@ -291,6 +321,22 @@ namespace Myrmutation.Building
         }
 
         // ================= A* =================
+
+        /// <summary>
+        /// Arista de la casilla (cx, cy) a su vecina en la dirección d, que queda en nb. Es la única regla de aristas:
+        /// la usan el A* y el relleno de IsReachable, así que "alcanzable" y "hay ruta" no pueden discrepar.
+        /// </summary>
+        private bool CanStep(int cx, int cy, int d, out int nb)
+        {
+            int dx = DirX[d], dy = DirY[d];
+            int nx = cx + dx, ny = cy + dy;
+            nb = ny * width + nx;
+            if (!InGrid(nx, ny) || !isNode[nb]) return false;
+            // En las salas solo se anda en horizontal: así solo se entra por las puertas.
+            if (dy != 0 && (grid.Get(new Vector2Int(cx, cy)) == CellType.Room || grid.Get(new Vector2Int(nx, ny)) == CellType.Room)) return false;
+            // Sin cortar esquinas: en diagonal, las dos ortogonales tienen que ser nodo.
+            return dx == 0 || dy == 0 || (isNode[cy * width + nx] && isNode[ny * width + cx]);
+        }
 
         private bool FindCellPath(int start, int goal)
         {
@@ -317,19 +363,11 @@ namespace Myrmutation.Building
                 closedGen[cur] = generation;
 
                 int cx = cur % width, cy = cur / width;
-                bool curRoom = grid.Get(new Vector2Int(cx, cy)) == CellType.Room;
-                for (int d = 0; d < 8; d++)
+                for (int d = 0; d < DirX.Length; d++)
                 {
-                    int dx = DirX[d], dy = DirY[d];
-                    int nx = cx + dx, ny = cy + dy;
-                    if (!InGrid(nx, ny)) continue;
-                    int nb = ny * width + nx;
-                    if (!isNode[nb] || closedGen[nb] == generation) continue;
-                    // En las salas solo se anda en horizontal: así solo se entra por las puertas.
-                    if (dy != 0 && (curRoom || grid.Get(new Vector2Int(nx, ny)) == CellType.Room)) continue;
-                    // Sin cortar esquinas: en diagonal, las dos ortogonales tienen que ser nodo.
-                    bool diagonal = dx != 0 && dy != 0;
-                    if (diagonal && (!isNode[cy * width + nx] || !isNode[ny * width + cx])) continue;
+                    if (!CanStep(cx, cy, d, out int nb) || closedGen[nb] == generation) continue;
+                    bool diagonal = DirX[d] != 0 && DirY[d] != 0;
+                    int nx = nb % width, ny = nb / width;
 
                     float cost = g[cur] + (diagonal ? DiagonalCost : 1f);
                     bool seen = seenGen[nb] == generation;

@@ -12,9 +12,10 @@ namespace Myrmutation.Building
         bool HasWork { get; }
 
         /// <summary>
-        /// Reserva para 'ant' el bloque trabajable más cercano (le suma una obrera).
-        /// False si no hay ninguno o si la hormiga no conecta con la colonia (atrapada en tierra o en una sala sin salida):
-        /// entonces no reserva nada y 'job' es null.
+        /// Pide trabajo para 'ant'. El gestor reparte los bloques entre las obreras que piden y aquí reserva el que le ha
+        /// tocado (le suma una obrera); si ya tiene uno sin terminar, devuelve ese. False si aún no le ha tocado nada (hay
+        /// que volver a pedir en los frames siguientes) o si no conecta con la colonia (atrapada en tierra o en una sala sin
+        /// salida): entonces no reserva nada y 'job' es null.
         /// </summary>
         bool TryClaim(Ant ant, out DigJob job);
     }

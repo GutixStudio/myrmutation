@@ -28,20 +28,25 @@ namespace Myrmutation.Building
         [Tooltip("Orden de dibujo del fondo; tiene que quedar por debajo del Tilemap")]
         [SerializeField] private int backgroundSortingOrder = -10;
 
-        private readonly Tile[] tiles = new Tile[16];   // índice = máscara; 0 = sin pieza
+        private Tile[] tiles;   // índice = máscara; 0 = sin pieza
         private Sprite whiteSprite;
 
-        private void Awake()
+        private void Awake() => tiles = BuildTiles(pieces, this);
+
+        /// <summary>Un Tile por pieza ms_XXXX, en el índice de su máscara (también lo usa BlueprintOverlay).</summary>
+        public static Tile[] BuildTiles(Sprite[] pieces, UnityEngine.Object context)
         {
+            var result = new Tile[16];
             foreach (var sprite in pieces)
             {
-                string n = sprite.name;   // "ms_0101" o "ms_0101_0" si se importó como Multiple
-                if (n.Length < 7 || !n.StartsWith("ms_")) { Debug.LogError($"[NestRenderer] Pieza sin nombre ms_XXXX: {n}", this); continue; }
+                string n = sprite.name;   // "ms_0101", "ms_0101_bp" o "ms_0101_0" si se importó como Multiple
+                if (n.Length < 7 || !n.StartsWith("ms_")) { Debug.LogError($"[NestRenderer] Pieza sin nombre ms_XXXX: {n}", context); continue; }
                 var tile = ScriptableObject.CreateInstance<Tile>();
                 tile.sprite = sprite;
                 tile.colliderType = Tile.ColliderType.None;
-                tiles[Convert.ToInt32(n.Substring(3, 4), 2)] = tile;
+                result[Convert.ToInt32(n.Substring(3, 4), 2)] = tile;
             }
+            return result;
         }
 
         private void OnEnable() => nest.CellChanged += OnCellChanged;

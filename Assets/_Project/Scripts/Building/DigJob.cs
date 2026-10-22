@@ -67,7 +67,7 @@ namespace Myrmutation.Building
             return true;
         }
 
-        private bool HasWorker(Ant ant) => ant != null && (workerA == ant || workerB == ant);
+        internal bool HasWorker(Ant ant) => ant != null && (workerA == ant || workerB == ant);
 
         /// <summary>
         /// La llama cada obrera en cada frame que excava, con su fuerza y Time.deltaTime.

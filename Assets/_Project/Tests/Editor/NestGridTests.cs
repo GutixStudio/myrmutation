@@ -21,6 +21,7 @@ namespace Myrmutation.Tests
             go = new GameObject("NestGrid (test)");
             go.transform.position = new Vector3(3f, -2f, 0f);   // origen no nulo para probar el desplazamiento
             grid = go.AddComponent<NestGrid>();
+            typeof(NestGrid).GetMethod("Reset", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(grid, null);   // RoomData de las salas iniciales
             typeof(NestGrid).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(grid, null);
         }
 

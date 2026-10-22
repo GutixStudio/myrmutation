@@ -18,6 +18,8 @@ MonoBehaviour:
     m\xE1s trabajen, m\xE1s se produce."
   sprite: {fileID: -2585070680663913251, guid: 77151f3352bca0a41a772a0a1700479f, type: 3}
   icon: {fileID: 0}
-  minWorkers: 2
+  buildable: 1
   workCost: 35
+  footprint: {x: 21, y: 12}
+  prefab: {fileID: 3898214834795218497, guid: 80592a508c0129f45ae2c97fe643ecad, type: 3}
   workerCapacity: 4

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using Myrmutation.Core;
+using Myrmutation.Core.Data;
 using UnityEngine;
 
 namespace Myrmutation.Building
@@ -48,15 +50,28 @@ namespace Myrmutation.Building
             new RectInt(62, 39, 2, 3),    // túnel pozo - Sala Real
             new RectInt(91, 39, 4, 3),    // túnel Sala Real - Despensa
         };
-        [Tooltip("Huellas de las salas iniciales, en casillas (pasan a Room aunque también estén en startingDug)")]
-        [SerializeField] private RectInt[] startingRooms =
+        [Tooltip("Salas iniciales: sus datos y la esquina inferior izquierda de su huella; el tamaño es data.footprint. " +
+                 "Pasan a Room aunque también estén en startingDug y RoomSpawner pone su prefab")]
+        [SerializeField] private StartingRoom[] startingRooms =
         {
-            new RectInt(35, 39, 21, 12),  // Guardería
-            new RectInt(64, 39, 27, 15),  // Sala Real (techo a 24 de profundidad)
-            new RectInt(95, 39, 21, 12),  // Despensa
+            new StartingRoom { origin = new Vector2Int(35, 39) },   // Guardería (21 × 12)
+            new StartingRoom { origin = new Vector2Int(64, 39) },   // Sala Real (27 × 15, techo a 24 de profundidad)
+            new StartingRoom { origin = new Vector2Int(95, 39) },   // Despensa (21 × 12)
         };
 
+        /// <summary>Sala del mapa inicial: sus datos y la esquina inferior izquierda de su huella, en casillas.</summary>
+        [Serializable]
+        public struct StartingRoom
+        {
+            public RoomData data;
+            public Vector2Int origin;
+        }
+
         private CellType[] cells;
+        private bool warnedNoData;
+
+        /// <summary>Salas del mapa inicial; las que no tienen RoomData no se colocan.</summary>
+        public IReadOnlyList<StartingRoom> StartingRooms => startingRooms;
 
         public int Width => width;
         public int Height => terrainRows + surfaceRows;
@@ -109,14 +124,33 @@ namespace Myrmutation.Building
                     for (int x = r.xMin; x < r.xMax; x++)
                         if (Get(new Vector2Int(x, y)) == CellType.Solid) cells[y * width + x] = CellType.Dug;
 
-            foreach (var r in startingRooms)
+            foreach (var s in startingRooms)
+            {
+                if (s.data == null)
+                {
+                    if (!warnedNoData) Debug.LogWarning("[NestGrid] Hay salas iniciales sin RoomData: no se colocan. Usa Reset en el componente para el mapa por defecto.", this);
+                    warnedNoData = true;
+                    continue;
+                }
+                var r = new RectInt(s.origin, s.data.footprint);
                 for (int y = r.yMin; y < r.yMax; y++)
                     for (int x = r.xMin; x < r.xMax; x++)
                     {
                         CellType t = Get(new Vector2Int(x, y));
                         if (t == CellType.Solid || t == CellType.Dug) cells[y * width + x] = CellType.Room;
                     }
+            }
         }
+
+#if UNITY_EDITOR
+        // Un inicializador de campo no puede apuntar a assets: el mapa por defecto toma sus RoomData de aquí al añadir el componente o al hacer Reset.
+        private void Reset()
+        {
+            string[] assets = { "Room_Nursery", "Room_Royal", "Room_Storage" };
+            for (int i = 0; i < startingRooms.Length && i < assets.Length; i++)
+                startingRooms[i].data = UnityEditor.AssetDatabase.LoadAssetAtPath<RoomData>($"Assets/_Project/Data/Rooms/{assets[i]}.asset");
+        }
+#endif
 
         public Vector2Int WorldToCell(Vector3 world)
         {

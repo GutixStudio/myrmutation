@@ -7,8 +7,9 @@ using UnityEngine.InputSystem;
 namespace Myrmutation.Building
 {
     /// <summary>
-    /// Prueba de A7 y A8 (escenas Test_A7 y Test_A8). Clic izquierdo: todas las hormigas van a ese punto.
-    /// Clic derecho: excava un círculo (para comprobar que la caché de rutas se vacía), sin tocar la pared de las salas.
+    /// Prueba de A7 y A8 (escenas Test_A7 y Test_A8). Ctrl + clic izquierdo: todas las hormigas van a ese punto.
+    /// Ctrl + clic derecho: excava un círculo (para comprobar que la caché de rutas se vacía), sin tocar la pared de las salas.
+    /// Sin Ctrl o sobre la UI, los clics no hacen nada.
     /// Con planificador (A8): mientras Shift está pulsado la cámara va en modo herramienta (CameraController.ToolMode):
     /// arrastrar con clic izquierdo pinta plano de túnel, mantener E lo borra bajo el ratón y el clic derecho mueve la vista.
     /// R planifica la sala de prueba en el ratón (el motivo del rechazo sale en la consola).
@@ -68,10 +69,12 @@ namespace Myrmutation.Building
                 }
             }
 
-            // Con el modo Construcción abierto los clics son de la herramienta: si no, cada trazo mandaría a todas las hormigas.
-            if (CameraController.ToolMode) return;
-            if (mouse.leftButton.wasPressedThisFrame) SendAll(world);
-            if (mouse.rightButton.wasPressedThisFrame) Dig(grid.WorldToCell(world));
+            // Solo con Ctrl y fuera de la UI: un clic normal (en "Construir", ✓, ✕ o un trazo) no debe mover a todas las hormigas.
+            if (CameraController.ToolMode || keyboard == null || !keyboard.ctrlKey.isPressed) return;
+            bool left = mouse.leftButton.wasPressedThisFrame, right = mouse.rightButton.wasPressedThisFrame;
+            if ((!left && !right) || CameraController.IsOverUI(mouse.position.ReadValue())) return;
+            if (left) SendAll(world);
+            if (right) Dig(grid.WorldToCell(world));
         }
 
         private static void SendAll(Vector3 point)

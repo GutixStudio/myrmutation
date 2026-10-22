@@ -32,6 +32,7 @@ namespace Myrmutation.Tests
         {
             go = new GameObject("DigPlanner (test)");
             grid = go.AddComponent<NestGrid>();
+            Call(grid, "Reset");   // RoomData de las salas iniciales
             Call(grid, "Awake");
             nav = go.AddComponent<GridNavigator>();
             Call(nav, "Awake");
@@ -463,7 +464,29 @@ namespace Myrmutation.Tests
             Assert.IsFalse(planner.HasWork);
         }
 
+        [Test]
+        public void BloqueDeLaZonaDeAcceso_NoPoneASuObreraEnLaHuellaDeLaSalaEnPlano()
+        {
+            Shaft();
+            Assert.AreEqual(RoomPlanResult.Ok, planner.PlanRoom(room, new Vector2Int(3, 60)));   // huella x 3–23, y 60–71
+            PaintChunk(8, 20);                    // zona de acceso derecha, x 24–26, y 60–62
+            Dig(new RectInt(18, 60, 6, 9));       // parte de la huella ya vaciada, pegada a la zona de acceso
+            Dig(new RectInt(24, 66, 3, 3));       // y unida al pozo por encima del anillo
+            // x = 23 no es nodo (su derecha es la zona de acceso, sin vaciar). Los dos candidatos quedan a 2 casillas del
+            // bloque y a la misma distancia de su centro: empatan, y sin el arreglo gana el de dentro (se recorre antes).
+            Assert.IsTrue(nav.IsReachable(new Vector2Int(22, 61)), "nodo alcanzable dentro de la huella");
+            Assert.IsTrue(nav.IsReachable(new Vector2Int(28, 61)), "nodo alcanzable en el pozo");
+
+            var args = new object[] { ChunkIndex(new Vector2Int(25, 61)), null };
+            Assert.IsTrue((bool)typeof(DigPlanner).GetMethod("IsWorkable", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(planner, args));
+            var stand = (Vector2Int)args[1];
+            Assert.IsFalse(new RectInt(3, 60, 21, 12).Contains(stand), $"sitio de la obrera {stand}, dentro de la huella");
+        }
+
         // ================= AUXILIARES =================
+
+        private int ChunkIndex(Vector2Int c) =>
+            (int)typeof(DigPlanner).GetMethod("ChunkIndex", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(planner, new object[] { c });
 
         private void Shaft() => Dig(new RectInt(27, 3, 3, 75));
 

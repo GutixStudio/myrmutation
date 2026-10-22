@@ -18,6 +18,8 @@ MonoBehaviour:
     o una tara."
   sprite: {fileID: 8256320127412276183, guid: 01f64bc4457782c46ae32a7c353751a2, type: 3}
   icon: {fileID: 0}
-  minWorkers: 3
+  buildable: 1
   workCost: 40
+  footprint: {x: 21, y: 12}
+  prefab: {fileID: 8726080302463942546, guid: 32872c01340d0b042b99143418fb0120, type: 3}
   workerCapacity: 4

@@ -339,12 +339,11 @@ MonoBehaviour:
   fungusCycleSeconds: 10
   leavesPerCycle: 2
   fungusPerCycle: 2
-  fungusToFood: 0
   fungusPerConversion: 1
   foodPerConversion: 2
-  directConversionSeconds: 4
   storageCycleSeconds: 5
-  fallbackToDirectWithoutStorage: 1
+  idleStoragePercent: 25
+  convertWithoutStorage: 1
   onlyCountWorkingAnts: 0
   logProduction: 0
 --- !u!114 &166896350
@@ -406,6 +405,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   windowSeconds: 60
   minSampleSeconds: 5
+  warmupSeconds: 1
   includeMeals: 1
   fallbackSecondsPerDay: 20
   fallbackDaysPerSeason: 5
@@ -676,9 +676,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   roomsToBuild:
   - {fileID: 1036962209}
+  - {fileID: 1215301623}
   assignments:
   - room: {fileID: 1036962209}
     ants: 3
+  - room: {fileID: 1215301623}
+    ants: 2
   startLeaves: 20
   leavesPerKeyPress: 10
   addLeavesKey: 26
@@ -1455,6 +1458,52 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1215301622
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1215301624}
+  - component: {fileID: 1215301623}
+  m_Layer: 0
+  m_Name: Despensa
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1215301623
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1215301622}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d590bcec293afa44799632a0c2c48ddc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  data: {fileID: 11400000, guid: bbd07c5e7f1bd8740a7a290c9dedcaea, type: 2}
+  workPoint: {fileID: 0}
+--- !u!4 &1215301624
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1215301622}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 8, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1470324823
 GameObject:
   m_ObjectHideFlags: 0
@@ -1790,3 +1839,4 @@ SceneRoots:
   - {fileID: 1646269506}
   - {fileID: 518931898}
   - {fileID: 951318674}
+  - {fileID: 1215301624}

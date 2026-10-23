@@ -79,6 +79,7 @@ namespace Myrmutation.Economy.Testing
         }
 
         private bool collapsed;
+        private Vector2 scroll;
 
         private void DrawPanel()
         {
@@ -100,6 +101,8 @@ namespace Myrmutation.Economy.Testing
 
             if (cp == null) { GUILayout.Label("⚠ No hay ColonyProduction en la escena"); GUILayout.EndArea(); return; }
 
+            scroll = GUILayout.BeginScrollView(scroll);
+
             foreach (var room in Room.All)
             {
                 if (room == null || room.Data == null) continue;
@@ -111,14 +114,21 @@ namespace Myrmutation.Economy.Testing
                     GUILayout.Label($"   · {a.Name} [{(a.Caste != null ? a.Caste.caste.ToString() : "sin casta")}] " +
                                     $"eficiencia x{ColonyProduction.GetEfficiency(a, room.Data.type):0.00}");
 
+                if (!room.IsBuilt) continue;
+                var status = cp.GetStatus(room);
+                GUILayout.Label($"   Estado: {ColonyProduction.Describe(status, room.Data.type)} ({status})");
+
                 var s = cp.GetState(room);
                 if (s != null)
-                    GUILayout.Label($"   Potencia {s.WorkPower:0.00} · Ciclo {s.Progress * 100f:0}%" +
-                                    $"{(s.Stalled ? " · ESPERANDO MATERIA PRIMA" : "")} · " +
-                                    $"{cp.GetOutputPerSecond(room) * 60f:0.0}/min");
+                {
+                    bool fungus = room.Data.type == RoomType.FungusGarden;
+                    GUILayout.Label($"   Potencia {s.EffectivePower:0.00} · Ciclo {s.Progress * 100f:0}%");
+                    GUILayout.Label($"   +{cp.RatePerMinute(room):0.0} {(fungus ? "hongo" : "comida")}/min · " +
+                                    $"−{cp.InputPerMinute(room):0.0} {(fungus ? "hojas" : "hongo")}/min");
+                }
             }
 
-            GUILayout.Space(6);
+            GUILayout.EndScrollView();
             if (GUILayout.Button($"+{leavesPerKeyPress} hojas ({addLeavesKey})")) AddLeaves();
             GUILayout.EndArea();
         }

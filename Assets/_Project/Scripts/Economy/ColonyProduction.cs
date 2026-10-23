@@ -6,27 +6,34 @@ using UnityEngine;
 namespace Myrmutation.Economy
 {
     /// <summary>
-    /// D1 · Cadena de producción de la colonia: hojas → hongo → comida.
+    /// D1 + D8 · Cadena de producción de la colonia: hojas → hongo → comida.
     ///
     /// - Sala de hongos (FungusGarden): sus obreras consumen hojas y producen hongo con el tiempo.
-    /// - El hongo se convierte en comida: directamente (automático) o en la Despensa (con sus obreras).
+    /// - Despensa (Storage): sus obreras convierten el hongo en comida (D8). Sin obreras sigue al
+    ///   idleStoragePercent (25 %) del ritmo de una obrera, para no bloquear el inicio.
     /// - La velocidad de cada sala = suma de (workRate × afinidad de la casta con la sala) de sus obreras.
+    /// - GetStatus(sala) explica por qué una sala no produce; RatePerMinute(sala) dice cuánto produce.
     ///
     /// Obrera de una sala = hormiga viva, no reina, con AssignedRoom == sala (máx. RoomData.workerCapacity).
     /// Solo producen salas construidas (Room.IsBuilt).
     /// Usa Time.deltaTime, así que se pausa/acelera con el GameManager.
     /// Recursos a través de ResourceManager (A1); no modifica nada de Core.
     /// </summary>
+    /// <summary>Por qué una sala produce o no (D8). Orden de prioridad: SinObreras > SinEntrada > Llena > Ok.</summary>
+    public enum RoomStatus
+    {
+        /// <summary>Produce con normalidad.</summary>
+        Ok,
+        /// <summary>No tiene ninguna obrera asignada (la Despensa sigue, pero solo al 25 %).</summary>
+        SinObreras,
+        /// <summary>Le falta materia prima: hojas (Sala de hongos) u hongo (Despensa).</summary>
+        SinEntrada,
+        /// <summary>Tiene el cupo de obreras completo (RoomData.workerCapacity): añadir más no sirve.</summary>
+        Llena
+    }
+
     public class ColonyProduction : MonoBehaviour
     {
-        public enum FungusToFoodMode
-        {
-            [Tooltip("El hongo se convierte en comida solo, a ritmo fijo")]
-            Direct,
-            [Tooltip("El hongo se convierte en comida en la Despensa, según sus obreras")]
-            Storage
-        }
-
         public static ColonyProduction Instance { get; private set; }
 
         [Header("Sala de hongos: hojas → hongo")]
@@ -35,20 +42,18 @@ namespace Myrmutation.Economy
         [SerializeField] private int leavesPerCycle = 2;
         [SerializeField] private int fungusPerCycle = 2;
 
-        [Header("Hongo → comida")]
-        [SerializeField] private FungusToFoodMode fungusToFood = FungusToFoodMode.Direct;
+        [Header("Despensa: hongo → comida")]
         [Tooltip("Hongo consumido en cada conversión")]
         [SerializeField] private int fungusPerConversion = 1;
         [Tooltip("Comida obtenida en cada conversión")]
         [SerializeField] private int foodPerConversion = 2;
-
-        [Tooltip("Modo Direct: segundos entre conversiones")]
-        [SerializeField] private float directConversionSeconds = 4f;
-
-        [Tooltip("Modo Storage: segundos que tarda UNA obrera con eficiencia 1 en una conversión")]
+        [Tooltip("Segundos que tarda UNA obrera con eficiencia 1 en una conversión")]
         [SerializeField] private float storageCycleSeconds = 5f;
-        [Tooltip("Modo Storage: si no hay Despensa construida, convertir igualmente de forma directa")]
-        [SerializeField] private bool fallbackToDirectWithoutStorage = true;
+        [Tooltip("Ritmo de una Despensa SIN obreras, en % del de una obrera con eficiencia 1 (para no bloquear el inicio)")]
+        [Range(0f, 100f)]
+        [SerializeField] private float idleStoragePercent = 25f;
+        [Tooltip("Si no hay ninguna Despensa construida, el hongo se convierte igualmente al ritmo sin obreras")]
+        [SerializeField] private bool convertWithoutStorage = true;
 
         [Header("Obreras")]
         [Tooltip("Si está activo, solo cuentan las hormigas que están trabajando en la sala (AntActuator.Working). " +
@@ -62,7 +67,8 @@ namespace Myrmutation.Economy
         public class RoomState
         {
             public float Progress;      // 0..1 del ciclo actual
-            public float WorkPower;     // suma de eficiencias de sus obreras
+            public float WorkPower;     // suma de eficiencias de sus obreras (sin el 25 % de la Despensa vacía)
+            public float EffectivePower;// la que se usa para avanzar (incluye el 25 % de la Despensa vacía)
             public int WorkerCount;
             public bool Stalled;        // ciclo completo pero falta materia prima (hojas / hongo)
         }
@@ -70,7 +76,7 @@ namespace Myrmutation.Economy
         private readonly Dictionary<Room, RoomState> states = new Dictionary<Room, RoomState>();
         private readonly List<Ant> workerBuffer = new List<Ant>();
         private readonly List<Room> deadRooms = new List<Room>();
-        private float directTimer;
+        private readonly RoomState noStorageState = new RoomState();   // conversión sin Despensa construida
 
         // ---------- Ciclo de vida ----------
         private void Awake()
@@ -97,35 +103,50 @@ namespace Myrmutation.Economy
                 switch (room.Data.type)
                 {
                     case RoomType.FungusGarden:
-                        TickRoom(room, dt, fungusCycleSeconds,
+                    {
+                        var s = GetOrCreate(room);
+                        s.WorkPower = ComputeWorkPower(room, out s.WorkerCount);
+                        s.EffectivePower = s.WorkPower;
+                        TickCycle(s, room, dt, fungusCycleSeconds,
                             ResourceType.Leaves, leavesPerCycle, ResourceType.Fungus, fungusPerCycle);
                         break;
+                    }
 
                     case RoomType.Storage:
+                    {
                         storageBuilt = true;
-                        if (fungusToFood == FungusToFoodMode.Storage)
-                            TickRoom(room, dt, storageCycleSeconds,
-                                ResourceType.Fungus, fungusPerConversion, ResourceType.Food, foodPerConversion);
+                        var s = GetOrCreate(room);
+                        s.WorkPower = ComputeWorkPower(room, out s.WorkerCount);
+                        s.EffectivePower = StoragePower(s.WorkPower);
+                        TickCycle(s, room, dt, storageCycleSeconds,
+                            ResourceType.Fungus, fungusPerConversion, ResourceType.Food, foodPerConversion);
                         break;
+                    }
                 }
             }
 
-            bool direct = fungusToFood == FungusToFoodMode.Direct
-                          || (fallbackToDirectWithoutStorage && !storageBuilt);
-            if (direct) TickDirectConversion(dt);
+            // Sin ninguna Despensa construida: conversión al ritmo sin obreras (no bloquea el inicio).
+            if (!storageBuilt && convertWithoutStorage)
+            {
+                noStorageState.WorkPower = 0f;
+                noStorageState.EffectivePower = StoragePower(0f);
+                TickCycle(noStorageState, null, dt, storageCycleSeconds,
+                    ResourceType.Fungus, fungusPerConversion, ResourceType.Food, foodPerConversion);
+            }
         }
 
-        // ---------- Producción por sala ----------
-        private void TickRoom(Room room, float dt, float cycleSeconds,
-                              ResourceType input, int inputAmount, ResourceType output, int outputAmount)
-        {
-            var s = GetOrCreate(room);
-            s.WorkPower = ComputeWorkPower(room, out s.WorkerCount);
+        /// <summary>Potencia de una Despensa: la de sus obreras, o el 25 % de una obrera si no tiene ninguna.</summary>
+        private float StoragePower(float workersPower) =>
+            workersPower > 0f ? workersPower : idleStoragePercent / 100f;
 
-            if (s.WorkPower <= 0f) return; // sin obreras: no avanza (conserva el progreso)
+        // ---------- Producción por sala ----------
+        private void TickCycle(RoomState s, Room room, float dt, float cycleSeconds,
+                               ResourceType input, int inputAmount, ResourceType output, int outputAmount)
+        {
+            if (s.EffectivePower <= 0f) return; // sin obreras: no avanza (conserva el progreso)
 
             if (s.Progress < 1f)
-                s.Progress += s.WorkPower * dt / Mathf.Max(0.01f, cycleSeconds);
+                s.Progress += s.EffectivePower * dt / Mathf.Max(0.01f, cycleSeconds);
 
             // Puede completar varios ciclos en un frame si va muy rápido (velocidad x3, muchas obreras)
             while (s.Progress >= 1f)
@@ -140,27 +161,12 @@ namespace Myrmutation.Economy
                 s.Progress -= 1f;
                 s.Stalled = false;
                 if (logProduction)
-                    Debug.Log($"[ColonyProduction] {room.Data.displayName}: -{inputAmount} {input} → +{outputAmount} {output}", room);
+                {
+                    string where = room != null && room.Data != null ? room.Data.displayName : "Sin Despensa";
+                    Debug.Log($"[ColonyProduction] {where}: -{inputAmount} {input} → +{outputAmount} {output}", room);
+                }
             }
             s.Stalled = false;
-        }
-
-        private void TickDirectConversion(float dt)
-        {
-            directTimer += dt;
-            float interval = Mathf.Max(0.01f, directConversionSeconds);
-            while (directTimer >= interval)
-            {
-                if (!ResourceManager.Instance.TrySpend(ResourceType.Fungus, fungusPerConversion))
-                {
-                    directTimer = interval; // espera a que haya hongo; convierte en cuanto llegue
-                    return;
-                }
-                ResourceManager.Instance.Add(ResourceType.Food, foodPerConversion);
-                directTimer -= interval;
-                if (logProduction)
-                    Debug.Log($"[ColonyProduction] Directo: -{fungusPerConversion} Hongo → +{foodPerConversion} Comida");
-            }
         }
 
         // ---------- Obreras y eficiencia ----------
@@ -214,21 +220,88 @@ namespace Myrmutation.Economy
         public RoomState GetState(Room room) =>
             room != null && states.TryGetValue(room, out var s) ? s : null;
 
-        /// <summary>Unidades de salida por segundo de la sala con sus obreras actuales (hongo o comida).</summary>
-        public float GetOutputPerSecond(Room room)
+        /// <summary>
+        /// Por qué la sala produce o no. Prioridad: SinObreras > SinEntrada > Llena > Ok.
+        /// Las salas que no producen (Real, Guardería, Festín) solo pueden dar Ok o Llena.
+        /// Una sala sin construir da Ok (su estado lo lleva la construcción).
+        /// </summary>
+        public RoomStatus GetStatus(Room room)
         {
-            if (room == null || room.Data == null || !room.IsBuilt) return 0f;
-            var s = GetState(room);
-            float power = s != null ? s.WorkPower : ComputeWorkPower(room, out _);
-            switch (room.Data.type)
+            if (room == null || room.Data == null || !room.IsBuilt) return RoomStatus.Ok;
+
+            int assigned = CountAssigned(room);
+            bool full = assigned >= Mathf.Max(1, room.Data.workerCapacity);
+            if (!IsProducer(room.Data.type)) return full ? RoomStatus.Llena : RoomStatus.Ok;
+
+            // Asignadas, no "trabajando ahora": si una se va a comer o a descansar, la sala no pasa a SinObreras.
+            if (assigned == 0) return RoomStatus.SinObreras;
+            if (!HasInput(room.Data.type)) return RoomStatus.SinEntrada;
+            if (full) return RoomStatus.Llena;
+            return RoomStatus.Ok;
+        }
+
+        /// <summary>
+        /// Producción de la sala en unidades por minuto de juego, con sus obreras actuales:
+        /// hongo (Sala de hongos) o comida (Despensa, incluido el 25 % sin obreras).
+        /// 0 si le falta materia prima o no es una sala de producción.
+        /// </summary>
+        public float RatePerMinute(Room room)
+        {
+            if (room == null || room.Data == null || !room.IsBuilt || !IsProducer(room.Data.type)) return 0f;
+            if (!HasInput(room.Data.type)) return 0f;
+            return CyclesPerMinute(room) * (room.Data.type == RoomType.FungusGarden ? fungusPerCycle : foodPerConversion);
+        }
+
+        /// <summary>Materia prima que gasta la sala por minuto (hojas o hongo). Para mostrar "+12 hongo/min · −12 hojas/min".</summary>
+        public float InputPerMinute(Room room)
+        {
+            if (room == null || room.Data == null || !room.IsBuilt || !IsProducer(room.Data.type)) return 0f;
+            if (!HasInput(room.Data.type)) return 0f;
+            return CyclesPerMinute(room) * (room.Data.type == RoomType.FungusGarden ? leavesPerCycle : fungusPerConversion);
+        }
+
+        /// <summary>Unidades de salida por segundo (compatibilidad con D1). Igual que RatePerMinute / 60.</summary>
+        public float GetOutputPerSecond(Room room) => RatePerMinute(room) / 60f;
+
+        /// <summary>Texto corto del estado para la UI.</summary>
+        public static string Describe(RoomStatus status, RoomType type)
+        {
+            switch (status)
             {
-                case RoomType.FungusGarden: return power * fungusPerCycle / Mathf.Max(0.01f, fungusCycleSeconds);
-                case RoomType.Storage:
-                    return fungusToFood == FungusToFoodMode.Storage
-                        ? power * foodPerConversion / Mathf.Max(0.01f, storageCycleSeconds)
-                        : 0f;
-                default: return 0f;
+                case RoomStatus.SinObreras: return type == RoomType.Storage ? "Sin obreras (25 %)" : "Sin obreras";
+                case RoomStatus.SinEntrada: return type == RoomType.Storage ? "Sin hongo" : "Sin hojas";
+                case RoomStatus.Llena: return "Llena";
+                default: return IsProducer(type) ? "Produciendo" : "Sin problemas";
             }
+        }
+
+        /// <summary>¿Es una sala de producción? (Sala de hongos o Despensa)</summary>
+        public static bool IsProducer(RoomType type) => type == RoomType.FungusGarden || type == RoomType.Storage;
+
+        private bool HasInput(RoomType type)
+        {
+            var rm = ResourceManager.Instance;
+            if (rm == null) return false;
+            return type == RoomType.FungusGarden
+                ? rm.Has(ResourceType.Leaves, leavesPerCycle)
+                : rm.Has(ResourceType.Fungus, fungusPerConversion);
+        }
+
+        private float CyclesPerMinute(Room room)
+        {
+            float power = ComputeWorkPower(room, out _);
+            if (room.Data.type == RoomType.Storage) power = StoragePower(power);
+            float cycle = room.Data.type == RoomType.FungusGarden ? fungusCycleSeconds : storageCycleSeconds;
+            return power * 60f / Mathf.Max(0.01f, cycle);
+        }
+
+        /// <summary>Hormigas asignadas a la sala (sin límite de cupo), para saber si está llena.</summary>
+        private static int CountAssigned(Room room)
+        {
+            int n = 0;
+            foreach (var a in Ant.All)
+                if (a != null && a.IsAlive && !a.IsQueen && a.AssignedRoom == room) n++;
+            return n;
         }
 
         // ---------- Utilidades ----------

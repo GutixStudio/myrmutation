@@ -131,6 +131,7 @@ GameObject:
   - component: {fileID: 251227847}
   - component: {fileID: 251227846}
   - component: {fileID: 251227845}
+  - component: {fileID: 251227848}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -1937,3 +1938,20 @@ SceneRoots:
   - {fileID: 251227844}
   - {fileID: 1663947980}
   - {fileID: 685069158}
+--- !u!114 &251227848
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 251227843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 262822ee1501e3f4aba97ea0000ec6f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  minFontSize: 32
+  minTouchSize: 88
+  onlyOnMobile: 0
+  rescanInterval: 0.5
+  exclude: []

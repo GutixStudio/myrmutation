@@ -272,6 +272,7 @@ namespace Myrmutation.Genetics
 
         private void Report(FeastResult r, int inherited)
         {
+            PostLog(r);
             if (logResults)
             {
                 string who = r.Victim != null ? r.Victim.Name : "una presa";
@@ -286,5 +287,39 @@ namespace Myrmutation.Genetics
                 Debug.Log($"[Festín] {r.Eater.Name} devora a {who}: {what} (+{r.Biomass} biomasa)");
             }
         }
+        // ---------- Registro de sucesos (C8) ----------
+
+        private const string FlawColor = "#E6594D";
+
+        //Cuenta el resultado del Festín en el log. La herencia de la reina la cuenta QueenGenome.
+        private static void PostLog(FeastResult r)
+        {
+            string eaterName = r.Eater.IsQueen ? "La reina" : r.Eater.Name;
+            string target = r.Victim != null ? $"a {r.Victim.Name}" : "una presa";
+            string text;
+
+            switch (r.Outcome)
+            {
+                case FeastOutcome.Gene:
+                    text = $"{eaterName} ha devorado {target} → {r.Gene.displayName}{EffectInParentheses(r.Gene)}";
+                    break;
+                case FeastOutcome.Flaw:
+                    text = $"<color={FlawColor}>{eaterName} ha salido {r.Gene.displayName}{EffectAfterColon(r.Gene)}</color>";
+                    break;
+                case FeastOutcome.Nothing:
+                    text = $"{eaterName} ha devorado {target}… y no ha pasado nada";
+                    break;
+                default:
+                    return;   // Inherited: una entrada por gen, desde QueenGenome
+            }
+
+            EventBus.Publish(new LogMessage(LogCategory.Mutacion, text, r.Eater.transform));
+        }
+
+        private static string EffectInParentheses(GeneData g) =>
+            string.IsNullOrEmpty(g.shortEffect) ? "" : $" ({g.shortEffect})";
+
+        private static string EffectAfterColon(GeneData g) =>
+            string.IsNullOrEmpty(g.shortEffect) ? "" : $": {g.shortEffect}";
     }
 }

@@ -84,7 +84,11 @@ namespace Myrmutation.Genetics
                 genome.RemoveAll(g => g != null && g.slot == gene.slot);
 
             genome.Add(gene);
-            if (notify) EventBus.Publish(new GeneInherited(caste, gene));
+            if (notify)
+            {
+                EventBus.Publish(new GeneInherited(caste, gene));
+                PostLog(caste, gene);
+            }
             return true;
         }
 
@@ -97,5 +101,26 @@ namespace Myrmutation.Genetics
             foreach (var gene in genomes[caste.caste])
                 target.AddGene(gene);
         }
+        // ---------- Registro de sucesos (C8) ----------
+
+        private void PostLog(CasteType caste, GeneData gene)
+        {
+            string geneName = string.IsNullOrEmpty(gene.displayName) ? gene.name : gene.displayName;
+            string what = gene.isFlaw ? "esta tara" : "este gen";
+            string text = $"La reina hereda {geneName}: todas las nuevas {CastePlural(caste)} nacerán con {what}";
+            if (gene.isFlaw) text = $"<color=#E6594D>{text}</color>";
+
+            EventBus.Publish(new LogMessage(LogCategory.Mutacion, text, QueenTransform()));
+        }
+
+        private Transform QueenTransform()
+        {
+            foreach (var a in Ant.All)
+                if (a != null && a.IsQueen) return a.transform;
+            return transform;
+        }
+
+        private static string CastePlural(CasteType c) =>
+            c == CasteType.Minor ? "Menores" : c == CasteType.Media ? "Medias" : "Mayores";
     }
 }

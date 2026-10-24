@@ -17,6 +17,8 @@ namespace Myrmutation.Building
         // Un hueco por obrera (MaxWorkers = 2). El == de Unity trata una hormiga destruida como null, así que su hueco queda libre.
         private Ant workerA;
         private Ant workerB;
+        // Última vez (tiempo sin escala) que cada obrera llamó a Work(ant, …); -∞ si nunca (o solo usa Work sin hormiga).
+        private float workedA = float.NegativeInfinity, workedB = float.NegativeInfinity;
 
         /// <summary>Bloque 3×3 que se excava (coordenadas de bloque, ver NestGrid.CellToChunk).</summary>
         public Vector2Int Chunk { get; }
@@ -62,15 +64,38 @@ namespace Myrmutation.Building
         public bool Claim(Ant ant)
         {
             if (ant == null || !CanClaim || HasWorker(ant)) return false;
-            if (workerA == null) workerA = ant;
-            else workerB = ant;
+            if (workerA == null) { workerA = ant; workedA = float.NegativeInfinity; }
+            else { workerB = ant; workedB = float.NegativeInfinity; }
             return true;
         }
 
-        internal bool HasWorker(Ant ant) => ant != null && (workerA == ant || workerB == ant);
+        /// <summary>
+        /// True si 'ant' tiene reservado este bloque. Una reserva de una obrera que aún no excava (va de camino o es la
+        /// anticipada) la puede perder en favor de otra más cercana: B6 lo trata como IsDone (suelta y vuelve a pedir).
+        /// </summary>
+        public bool HasWorker(Ant ant) => ant != null && (workerA == ant || workerB == ant);
+
+        /// <summary>Hueco 0 o 1 (para el planificador).</summary>
+        internal Ant WorkerAt(int slot) => slot == 0 ? workerA : workerB;
+
+        /// <summary>Última vez (Time.unscaledTime) que 'ant' llamó a Work(ant, …) en este bloque; -∞ si nunca.</summary>
+        internal float LastWorked(Ant ant) =>
+            ant == null ? float.NegativeInfinity : workerA == ant ? workedA : workerB == ant ? workedB : float.NegativeInfinity;
 
         /// <summary>
-        /// La llama cada obrera en cada frame que excava, con su fuerza y Time.deltaTime.
+        /// La llama cada obrera en cada frame que excava, con su fuerza y Time.deltaTime. Es la que debe usar B6: además
+        /// apunta que 'ant' está excavando, y así nadie le quita el bloque. Avanza Progress como Work(strength, deltaTime).
+        /// </summary>
+        public void Work(Ant ant, float strength, float deltaTime)
+        {
+            if (ant != null && workerA == ant) workedA = Time.unscaledTime;
+            else if (ant != null && workerB == ant) workedB = Time.unscaledTime;
+            Work(strength, deltaTime);
+        }
+
+        /// <summary>
+        /// Versión sin hormiga (se mantiene por compatibilidad; mejor Work(ant, …)): entonces el planificador decide si la
+        /// obrera excava por su distancia a StandPosition.
         /// Avanza Progress en strength × deltaTime / coste, sin pasar de 1. Las llamadas se suman:
         /// dos obreras en el mismo frame avanzan el doble de rápido. No hace nada si el bloque ya está terminado.
         /// </summary>

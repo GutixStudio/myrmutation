@@ -41,6 +41,30 @@ namespace Myrmutation.Tests
         }
 
         [Test]
+        public void SalaEnObras_SoloSeAndaPorSuSuelo_YAlCancelarlaEsTunel()
+        {
+            var rect = new RectInt(6, 6, 21, 12);   // huella x 6–26, y 6–17
+            Dig(new RectInt(3, 6, 27, 6));          // sus 6 filas de abajo y las dos zonas de acceso (x 3–5 y 27–29)
+            Dig(new RectInt(27, 12, 3, 20));        // pozo desde la zona de acceso derecha
+            nav.SetRoomPlan(rect, true);
+
+            for (int x = 6; x <= 26; x++)
+            {
+                Assert.IsTrue(nav.IsNode(new Vector2Int(x, 7)), $"suelo ({x}, 7)");
+                for (int y = 8; y <= 10; y++) Assert.IsFalse(nav.IsNode(new Vector2Int(x, y)), $"({x}, {y})");
+            }
+
+            Assert.IsTrue(nav.TryGetPath(At(28, 25), At(10, 10), path));
+            Assert.AreEqual(nav.GroundPoint(new Vector2Int(10, 7)), path[path.Count - 1], "acaba en el suelo, debajo del destino");
+            AssertOnRoomFloor(path);
+            Assert.IsTrue(nav.TryGetPath(At(4, 7), At(28, 25), path), "de puerta a puerta y por el pozo");
+            AssertOnRoomFloor(path);
+
+            nav.SetRoomPlan(rect, false);
+            Assert.IsTrue(nav.IsNode(new Vector2Int(10, 9)), "cancelada: lo excavado es túnel normal");
+        }
+
+        [Test]
         public void TunelDiagonalDelPincelDaRutaDeExtremoAExtremo()
         {
             Paint(new Vector2Int(6, 6), new Vector2Int(30, 30));
@@ -237,6 +261,22 @@ namespace Myrmutation.Tests
                         if ((c - p).sqrMagnitude <= 2.25f && grid.Get(c) == CellType.Solid) grid.Set(c, CellType.Dug);
                     }
             }
+        }
+
+        private void Dig(RectInt r)
+        {
+            foreach (var c in r.allPositionsWithin) grid.Set(c, CellType.Dug);
+        }
+
+        // Ningún punto de la ruta, ni de sus tramos, cae dentro de una sala fuera de su fila del suelo.
+        private void AssertOnRoomFloor(List<Vector3> route)
+        {
+            for (int i = 1; i < route.Count; i++)
+                for (int s = 0; s <= 10; s++)
+                {
+                    Vector3 p = Vector3.Lerp(route[i - 1], route[i], s / 10f);
+                    Assert.IsFalse(nav.OffRoomFloor(p, out _), $"tramo {i}, {p}");
+                }
         }
 
         private Vector3 At(int x, int y) => grid.CellToWorld(new Vector2Int(x, y));

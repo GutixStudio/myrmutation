@@ -16,7 +16,7 @@ namespace Myrmutation.Building
     /// - Un toque/clic sin arrastrar lanza el evento Tapped con la posición en el mundo
     ///   (lo usan la construcción y la selección de hormigas).
     /// - Ignora los toques que empiezan sobre la UI.
-    /// - No deja que la cámara salga del mapa (NestGrid) o, en la alfa, del sprite de fondo (bounds).
+    /// - No deja que la cámara salga del mapa (NestGrid).
     /// Con ToolMode (modo herramienta, §5): el clic izquierdo y un dedo son de la herramienta; la cámara se mueve con el
     /// clic derecho o la rueda pulsada y con dos dedos, y no se lanza Tapped.
     /// </summary>
@@ -39,10 +39,6 @@ namespace Myrmutation.Building
             ToolMode = false;
             Tapped = null;
         }
-
-        [Header("Límites")]
-        [Tooltip("Solo si no hay NestGrid (escenas de la alfa): la cámara nunca muestra nada fuera de este sprite")]
-        [SerializeField] private SpriteRenderer bounds;
 
         [Header("Zoom (tamaño ortográfico)")]
         [SerializeField] private float minZoom = 3f;
@@ -224,12 +220,11 @@ namespace Myrmutation.Building
             transform.position = p;
         }
 
-        // Con NestGrid se usan sus límites (se recalculan cada frame con el aspecto actual de la pantalla).
+        // Límites de NestGrid (se recalculan cada frame con el aspecto actual de la pantalla); sin rejilla, sin límites.
         private bool TryGetBounds(out Bounds b)
         {
-            if (NestGrid.Instance != null) { b = NestGrid.Instance.WorldBounds; return true; }
-            b = bounds != null ? bounds.bounds : default;
-            return bounds != null;
+            b = NestGrid.Instance != null ? NestGrid.Instance.WorldBounds : default;
+            return NestGrid.Instance != null;
         }
 
         private Vector3 ScreenToWorld(Vector2 screenPos)

@@ -12,9 +12,12 @@ namespace Myrmutation.Building
     /// inicial (NestGrid.StartingRooms) ya terminadas; al recibir RoomDug, el prefab de la sala excavada con un fundido.
     /// Cada prefab lleva su Room, que se registra sola en Room.All (como en la alfa), y aquí se llama a CompleteBuild().
     /// La Sala Real, la Guardería y la Despensa iniciales no cuentan para el +25 % del coste (eso lo lleva DigPlanner).
+    /// RoomAt dice qué sala hay bajo un punto (por su huella): lo usan la selección de hormigas y las pruebas de B.
     /// </summary>
     public class RoomSpawner : MonoBehaviour
     {
+        public static RoomSpawner Instance { get; private set; }
+
         [Tooltip("Rejilla del hormiguero. Si se deja vacío, usa NestGrid.Instance")]
         [SerializeField] private NestGrid grid;
         [Tooltip("Navegador de la rejilla. Si se deja vacío, usa Navigation.Current")]
@@ -23,9 +26,30 @@ namespace Myrmutation.Building
         [SerializeField] private float fadeDuration = 0.6f;
 
         private readonly HashSet<RoomData> warnedNoPrefab = new HashSet<RoomData>();
+        private readonly List<(Room room, RectInt rect)> placed = new List<(Room, RectInt)>();
 
-        private void OnEnable() => EventBus.Subscribe<RoomDug>(OnRoomDug);
-        private void OnDisable() => EventBus.Unsubscribe<RoomDug>(OnRoomDug);
+        private void OnEnable()
+        {
+            Instance = this;
+            EventBus.Subscribe<RoomDug>(OnRoomDug);
+        }
+
+        private void OnDisable()
+        {
+            if (Instance == this) Instance = null;
+            EventBus.Unsubscribe<RoomDug>(OnRoomDug);
+        }
+
+        /// <summary>Sala cuya huella contiene el punto, o null.</summary>
+        public static Room RoomAt(Vector2 world)
+        {
+            var s = Instance;
+            if (s == null || !s.Resolve()) return null;
+            Vector2Int cell = s.grid.WorldToCell(world);
+            foreach (var (room, rect) in s.placed)
+                if (room != null && rect.Contains(cell)) return room;
+            return null;
+        }
 
         private void Start()
         {
@@ -69,6 +93,7 @@ namespace Myrmutation.Building
             }
             room.Data = data;
             room.CompleteBuild();
+            placed.Add((room, DigPlanner.RoomRect(data, origin)));
             return room;
         }
 

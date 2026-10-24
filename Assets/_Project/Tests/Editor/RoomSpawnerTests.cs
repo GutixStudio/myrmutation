@@ -160,6 +160,23 @@ namespace Myrmutation.Tests
         }
 
         [Test]
+        public void RoomAt_DevuelveLaSalaSoloDentroDeSuHuella()
+        {
+            var origin = new Vector2Int(3, 60);
+            Room room = null;
+            System.Action<RoomBuilt> onBuilt = e => room = e.Room;
+            EventBus.Subscribe(onBuilt);
+            try { EventBus.Publish(new RoomDug(NewData(WithPrefab()), origin)); }
+            finally { EventBus.Unsubscribe(onBuilt); }
+
+            Assert.IsNotNull(room, "RoomBuilt");
+            Assert.AreSame(room, RoomSpawner.RoomAt(grid.CellToWorld(origin)), "esquina inferior izquierda");
+            Assert.AreSame(room, RoomSpawner.RoomAt(grid.CellToWorld(origin + new Vector2Int(20, 11))), "esquina superior derecha");
+            Assert.IsNull(RoomSpawner.RoomAt(grid.CellToWorld(origin + new Vector2Int(21, 0))), "justo a la derecha");
+            Assert.IsNull(RoomSpawner.RoomAt(grid.CellToWorld(origin + new Vector2Int(0, -1))), "justo debajo");
+        }
+
+        [Test]
         public void HormigaEnMarchaHaciaDentroDeLaSala_SePara_AlTerminarla()
         {
             var rect = new RectInt(3, 60, 21, 12);

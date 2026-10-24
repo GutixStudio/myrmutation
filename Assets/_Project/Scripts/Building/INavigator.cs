@@ -5,7 +5,7 @@ namespace Myrmutation.Building
 {
     /// <summary>
     /// Contrato de navegación. La IA (B) SOLO usa esto, nunca el grafo directamente.
-    /// Alfa: WaypointGraph (túneles fijos). Beta: rejilla con A* (túneles excavados) con la misma interfaz.
+    /// Lo implementa GridNavigator (rejilla con A*, túneles excavados).
     /// </summary>
     public interface INavigator
     {

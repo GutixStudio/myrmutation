@@ -18,7 +18,7 @@ namespace Myrmutation.Ants
     ///  · Hueco de acciones: botones que añaden otros sistemas con AntPanelAction.Register (C: Devorar).
     ///
     /// Los botones de genes, salas y acciones se crean duplicando una plantilla desactivada,
-    /// igual que BuildMenuUI.
+    /// igual que BuildModeUI.
     /// </summary>
     public class AntPanelUI : MonoBehaviour
     {

@@ -9,12 +9,12 @@ namespace Myrmutation.Ants.Testing
     /// SOLO PRUEBAS (Scenes/Test/B.unity). Controla una hormiga y muestra lo que piensa.
     ///
     /// Con cerebro (AntBrain activo):
-    ///   Clic en una zona con sala → asignarle esa sala (Ant.AssignedRoom); ella decide el resto
+    ///   Clic en una sala → asignarle esa sala (Ant.AssignedRoom); ella decide el resto
     ///   N → quitarle la sala asignada
     ///   B → suspender / reanudar el cerebro
     ///
     /// Con el cerebro suspendido (o sin cerebro), órdenes manuales como en B1/B3:
-    ///   Clic en una zona → MoverA · T trabajar · C comer · P parar · H ir a comer · R descansar
+    ///   Clic → MoverA (a la sala o al punto) · T trabajar · C comer · P parar · H ir a comer · R descansar
     ///
     /// Si la escena tiene AntSelection (panel de hormiga, B4), los clics los gestiona el panel
     /// y aquí solo funcionan las teclas.
@@ -72,21 +72,21 @@ namespace Myrmutation.Ants.Testing
             if (ant == null) return;
             // Si hay selección de hormigas (B4) en la escena, los toques los gestiona el panel.
             if (AntSelection.Instance != null) return;
-            var zone = BuildZone.At(world);
-            if (zone == null) return;
+            var room = RoomSpawner.RoomAt(world);
 
             if (BrainActive)
             {
-                if (zone.Room == null) { lastEvent = $"{zone.ZoneId} no tiene sala"; return; }
-                antCore.AssignedRoom = zone.Room;
-                lastEvent = $"Asignada a {zone.Room.name} ({zone.ZoneId})";
+                if (room == null) { lastEvent = "Ahí no hay sala"; return; }
+                antCore.AssignedRoom = room;
+                lastEvent = $"Asignada a {room.name}";
                 return;
             }
 
-            Vector3 target = zone.Room != null ? zone.Room.WorkPosition : zone.EntrancePosition;
+            Vector3 target = room != null ? room.WorkPosition : new Vector3(world.x, world.y, ant.transform.position.z);
             eatOnArrival = false;
             bool ok = ant.MoveTo(target);
-            lastEvent = ok ? $"MoverA → {zone.ZoneId}" : $"Sin camino a {zone.ZoneId}";
+            string where = room != null ? room.name : $"({world.x:0.0}, {world.y:0.0})";
+            lastEvent = ok ? $"MoverA → {where}" : $"Sin camino a {where}";
         }
 
         private void Update()
@@ -209,7 +209,7 @@ namespace Myrmutation.Ants.Testing
             GUILayout.Label($"Comida colonia: {(food >= 0 ? food.ToString() : "sin ResourceManager")}");
             GUILayout.Label($"Último: {lastEvent}");
             GUILayout.Label(BrainActive
-                ? "Clic zona: asignar sala · N quitar sala · B suspender cerebro"
+                ? "Clic sala: asignar sala · N quitar sala · B suspender cerebro"
                 : "Clic: mover · T trabajar · C comer · P parar · H comer · R descansar · B cerebro");
             GUILayout.EndArea();
         }

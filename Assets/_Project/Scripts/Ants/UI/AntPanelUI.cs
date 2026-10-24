@@ -65,6 +65,12 @@ namespace Myrmutation.Ants
         [Tooltip("Botón plantilla (desactivado) que se duplica por cada acción registrada")]
         [SerializeField] private Button actionButtonTemplate;
 
+        [Header("Móvil (px en la resolución de referencia 1920×1080, mínimos de E11)")]
+        [Tooltip("Tamaño mínimo de todos los textos del panel")]
+        [SerializeField] private float minFontSize = 32f;
+        [Tooltip("Alto mínimo de todo lo que se toca (botones, iconos de gen)")]
+        [SerializeField] private float minTouchSize = 88f;
+
         private Ant ant;
         private AntNeeds needs;
         private AntBrain brain;
@@ -80,6 +86,9 @@ namespace Myrmutation.Ants
 
         private void Awake()
         {
+            // Antes de duplicar nada: así las plantillas (y todo lo que se cree a partir de ellas) ya cumplen.
+            EnforceMobileSizes();
+
             if (panel != null) panel.SetActive(false);
             if (roomListPanel != null) roomListPanel.SetActive(false);
             if (geneIconTemplate != null) geneIconTemplate.gameObject.SetActive(false);
@@ -116,6 +125,48 @@ namespace Myrmutation.Ants
             slowTimer = 0.5f;
             RefreshGenesIfChanged();
             RefreshActionVisibility();
+        }
+
+        // ================= MÓVIL (E15) =================
+
+        /// <summary>
+        /// Aplica los mínimos de E11 a todo el panel (también a lo desactivado y a las plantillas):
+        /// textos de al menos minFontSize y elementos táctiles de al menos minTouchSize de alto.
+        /// Si un contenedor (Header, Actions…) tenía una altura fija menor, también se agranda.
+        /// </summary>
+        private void EnforceMobileSizes()
+        {
+            foreach (var t in GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (t.enableAutoSizing) t.fontSizeMin = Mathf.Max(t.fontSizeMin, minFontSize);
+                if (t.fontSize < minFontSize) t.fontSize = minFontSize;
+            }
+
+            foreach (var b in GetComponentsInChildren<Button>(true))
+                EnsureTouchHeight(b.gameObject, false);
+
+            // Los iconos de gen se convierten en botones al mostrarse: la plantilla ya sale grande.
+            if (geneIconTemplate != null) EnsureTouchHeight(geneIconTemplate.gameObject, true);
+        }
+
+        private void EnsureTouchHeight(GameObject go, bool square)
+        {
+            var le = go.GetComponent<LayoutElement>();
+            if (le == null) le = go.AddComponent<LayoutElement>();
+            le.minHeight = Mathf.Max(le.minHeight, minTouchSize);
+            if (le.preferredHeight > 0f && le.preferredHeight < minTouchSize) le.preferredHeight = minTouchSize;
+            if (square)
+            {
+                le.minWidth = Mathf.Max(le.minWidth, minTouchSize);
+                if (le.preferredWidth > 0f && le.preferredWidth < minTouchSize) le.preferredWidth = minTouchSize;
+            }
+
+            // El contenedor directo (fila de cabecera, de acciones, de genes…) no puede ser más bajo.
+            var parent = go.transform.parent;
+            if (parent == null) return;
+            var ple = parent.GetComponent<LayoutElement>();
+            if (ple != null && ple.preferredHeight > 0f && ple.preferredHeight < minTouchSize)
+                ple.preferredHeight = minTouchSize;
         }
 
         // ================= ABRIR / CERRAR =================

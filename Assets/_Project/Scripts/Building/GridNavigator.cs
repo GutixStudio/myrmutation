@@ -7,7 +7,7 @@ namespace Myrmutation.Building
 {
     /// <summary>
     /// Navegación de la beta sobre la rejilla fina (diseno-construccion-beta.md §7). Mismo contrato INavigator que la alfa.
-    /// Nodos: casillas excavadas con holgura, la fila central de las 3 inferiores de cada sala (en las salas solo se anda
+    /// Nodos: casillas excavadas con holgura, la fila central de las 3 inferiores de cada sala, terminada o en plano (en las salas solo se anda
     /// en horizontal, así que solo se entra por las puertas) y la fila central de la hierba.
     /// A* en 8 direcciones sin reservar memoria por búsqueda. Cada ruta se tensa, se redondea (Chaikin) y se baja al suelo
     /// una sola vez y se guarda en caché hasta que cambie una casilla.
@@ -59,6 +59,8 @@ namespace Myrmutation.Building
 
         private int width, height, surfaceRow;
         private bool[] isNode;
+        // Huellas de las salas en plano (las marca DigPlanner): por dentro se navega como en una sala terminada.
+        private bool[] roomPlan;
 
         // A*: arrays del tamaño de la rejilla reservados una vez. 'generation' sube en cada búsqueda
         // y marca qué entradas son de la búsqueda actual, así que nunca hay que limpiarlos.
@@ -250,6 +252,7 @@ namespace Myrmutation.Building
             surfaceRow = grid.TerrainRows;
             int n = width * height;
             isNode = new bool[n];
+            roomPlan = new bool[n];
             g = new float[n];
             f = new float[n];
             parent = new int[n];
@@ -279,17 +282,40 @@ namespace Myrmutation.Building
                     if (InGrid(x, y)) isNode[y * width + x] = ComputeIsNode(x, y);
         }
 
+        /// <summary>
+        /// Marca o desmarca la huella de una sala en plano (§4, salas con gravedad). Por dentro, como en una sala
+        /// terminada, solo son nodos los de la fila central de las 3 inferiores y solo se anda en horizontal.
+        /// </summary>
+        public void SetRoomPlan(RectInt rect, bool planned)
+        {
+            if (!EnsureBuilt()) return;
+            foreach (var c in rect.allPositionsWithin)
+                if (InGrid(c.x, c.y)) roomPlan[Index(c)] = planned;
+            cache.Clear();
+            reachDirty = true;
+            // La regla de las salas mira 2 casillas hacia abajo y la holgura, las 4 vecinas.
+            for (int y = rect.yMin - 1; y <= rect.yMax + 2; y++)
+                for (int x = rect.xMin - 1; x <= rect.xMax; x++)
+                    if (InGrid(x, y)) isNode[y * width + x] = ComputeIsNode(x, y);
+        }
+
+        // Casilla de una sala, terminada (Room) o en plano.
+        private bool InRoom(int x, int y) =>
+            InGrid(x, y) && (roomPlan[y * width + x] || grid.Get(new Vector2Int(x, y)) == CellType.Room);
+
         private bool ComputeIsNode(int x, int y)
         {
             var c = new Vector2Int(x, y);
             switch (grid.Get(c))
             {
                 case CellType.Dug:
-                    return grid.HasClearance(c);
+                    if (!roomPlan[y * width + x]) return grid.HasClearance(c);
+                    // En una sala en obras, como en una terminada, con las casillas de encima y debajo ya vaciadas.
+                    return InRoom(x, y - 1) && !InRoom(x, y - 2)
+                        && NestGrid.IsOpen(grid.Get(new Vector2Int(x, y - 1))) && NestGrid.IsOpen(grid.Get(new Vector2Int(x, y + 1)));
                 case CellType.Room:
                     // Fila central de las 3 inferiores de la sala.
-                    return grid.Get(new Vector2Int(x, y - 1)) == CellType.Room
-                        && grid.Get(new Vector2Int(x, y - 2)) != CellType.Room;
+                    return InRoom(x, y - 1) && !InRoom(x, y - 2);
                 case CellType.Surface:
                     // Fila central de la hierba y, por debajo, la hierba con holgura (la boca del pozo).
                     return y <= surfaceRow + grassCenterOffset && grid.HasClearance(c);
@@ -334,7 +360,7 @@ namespace Myrmutation.Building
             nb = ny * width + nx;
             if (!InGrid(nx, ny) || !isNode[nb]) return false;
             // En las salas solo se anda en horizontal: así solo se entra por las puertas.
-            if (dy != 0 && (grid.Get(new Vector2Int(cx, cy)) == CellType.Room || grid.Get(new Vector2Int(nx, ny)) == CellType.Room)) return false;
+            if (dy != 0 && (InRoom(cx, cy) || InRoom(nx, ny))) return false;
             // Sin cortar esquinas: en diagonal, las dos ortogonales tienen que ser nodo.
             return dx == 0 || dy == 0 || (isNode[cy * width + nx] && isNode[ny * width + cx]);
         }
@@ -569,20 +595,22 @@ namespace Myrmutation.Building
         // ================= HORMIGAS DENTRO DE TIERRA =================
 
         /// <summary>
-        /// La hormiga en 'world' está dentro de una sala (casilla Room a la altura de la sonda) pero no en su fila de nodos
-        /// (la 2.ª desde abajo, donde acaban todas las rutas de la sala). 'floor' es el GroundPoint de ese nodo en su
-        /// columna, con la z de 'world'.
+        /// La hormiga en 'world' está dentro de una sala, terminada o en plano (a la altura de la sonda), pero no en su
+        /// fila de nodos (la 2.ª desde abajo, donde acaban todas las rutas de la sala). 'floor' es el GroundPoint de ese
+        /// nodo en su columna (o del nodo más cercano, si en una sala en obras aún no está vaciado), con la z de 'world'.
         /// </summary>
         public bool OffRoomFloor(Vector3 world, out Vector3 floor)
         {
             floor = world;
             if (!EnsureBuilt()) return false;
             Vector2Int c = grid.WorldToCell(world + Vector3.up * stuckProbeHeight);
-            if (!InGrid(c.x, c.y) || grid.Get(c) != CellType.Room || isNode[c.y * width + c.x]) return false;
+            if (!InRoom(c.x, c.y) || isNode[c.y * width + c.x]) return false;
 
-            while (grid.Get(new Vector2Int(c.x, c.y - 1)) == CellType.Room) c.y--;
-            // Toda la fila de encima de la inferior es nodo, así que el más cercano en x es el de su misma columna.
-            floor = GroundPoint(new Vector2Int(c.x, c.y + 1));
+            while (InRoom(c.x, c.y - 1)) c.y--;
+            // En una sala terminada toda la fila de encima de la inferior es nodo: el más cercano en x es el de su columna.
+            var node = new Vector2Int(c.x, c.y + 1);
+            if (!isNode[Index(node)] && !Nearest(world, out node)) return false;
+            floor = GroundPoint(node);
             floor.z = world.z;
             return true;
         }

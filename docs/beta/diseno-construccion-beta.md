@@ -63,12 +63,16 @@ Dentro de una sala terminada, las hormigas caminan por el **suelo** (8 px por en
 ## 4. Excavar
 - **Plano:** casillas marcadas para excavar (con el pincel) o la huella de una sala.
 - **Bloques de trabajo:** el mapa se divide en bloques fijos de 3 × 3 casillas (0,75 u). Excavar casilla a casilla serían miles de trabajos minúsculos; el bloque es la unidad que se reserva, se trabaja y se ve avanzar.
-- **Bloque trabajable:** tiene casillas en plano y hay un nodo alcanzable a ≤ 2 casillas (Chebyshev) de alguna de ellas. La obrera se pone en el `GroundPoint` de ese nodo (el más cercano a las casillas en plano del bloque). Los bloques de sala, además, necesitan la condición de las salas (punto siguiente). *(Cambiado en A8, ver decisiones.md.)*
+- **Bloque trabajable (túnel):** tiene casillas en plano y hay un nodo alcanzable a ≤ 2 casillas (Chebyshev) de alguna de ellas, fuera de la huella de cualquier sala en plano. La obrera se pone en el `GroundPoint` de ese nodo (el más cercano a las casillas en plano del bloque). Los bloques de sala siguen sus propias reglas (punto siguiente). *(Cambiado en A8 y A10, ver decisiones.md.)*
 - **Hormigas no alcanzables:** `TryClaim` devuelve false sin reservar nada si el nodo más cercano a la hormiga no es alcanzable (atrapada en tierra o en una sala sin salida). *(Cambiado en A8, ver decisiones.md.)*
-- **Salas:** se empiezan solo desde sus zonas de acceso; después avanzan por sus propios bloques ya excavados. Si ninguna zona de acceso está excavada ni en plano, la sala muestra **"Sin acceso"**.
+- **Salas (con gravedad):** las obreras las excavan siempre de pie en su suelo, nunca flotando. *(Cambiado en A10, ver decisiones.md.)*
+  - Desde que la sala está en plano, su huella se navega como una sala terminada: dentro solo hay nodos en la fila central de las 3 inferiores y solo se entra y sale en horizontal, por las puertas.
+  - **Por capas de bloques:** la capa 0 (la fila inferior de bloques) se empieza solo desde sus zonas de acceso y avanza hacia dentro por sus propios bloques ya excavados. Un bloque de la capa k ≥ 1 solo es trabajable cuando **toda** la capa k−1 está terminada: el techo sube parejo.
+  - La obrera de un bloque de sala se pone en el `GroundPoint` del nodo alcanzable del suelo de la sala (o de sus zonas de acceso) más cercano en x al centro del bloque, sin el límite de 2 casillas.
+  - Si ninguna zona de acceso está excavada ni en plano, la sala muestra **"Sin acceso"**.
 - **Coste de un bloque** = (casillas en plano del bloque / 9) × 1,5 × estrato (tierra ×1, arcilla ×1,33, roca ×2). Un bloque completo de tierra lo excava una Media (fuerza 1) en 1,5 s.
 - **Hasta 2 obreras por bloque** (sus fuerzas se suman). Sin esto, un túnel largo lo excavaría una sola hormiga, porque su frente solo tiene un bloque.
-- **Mientras se excava,** las casillas del bloque se van vaciando de la más cercana a la obrera a la más lejana, según el progreso: el túnel "avanza" de verdad. Encima va la grieta en 3 fases y saltan terrones.
+- **Mientras se excava,** las casillas del bloque se van vaciando según el progreso: en los túneles, de la más cercana a la obrera a la más lejana (el túnel "avanza" de verdad); en las salas, por filas de abajo arriba. Encima va la grieta en 3 fases y saltan terrones.
 - La obrera se coloca en la parte excavada más cercana, mirando al bloque, y trabaja hasta terminarlo, salvo que la interrumpa una necesidad (comer o descansar). Entonces suelta el bloque y el progreso se conserva.
 - **Cada casilla que termina:** se avisa al navegador (invalida la caché) y se publica `CellDug`.
 - **Al excavar el último bloque de una sala:** aparece el prefab de la sala con un fundido, se llama a `Room.CompleteBuild()` y la sala pasa a funcionar.
@@ -100,7 +104,7 @@ Dentro de una sala terminada, las hormigas caminan por el **suelo** (8 px por en
 ## 7. Navegación (`GridNavigator : INavigator`)
 - **Contrato:** el mismo `INavigator`, así que `AntActuator` y `AntSensor` no cambian.
 - **Holgura:** una casilla de 0,25 es más pequeña que una hormiga. Solo son nodos las casillas excavadas cuyas **4 vecinas (arriba, abajo, izquierda y derecha) también están excavadas**. Así las hormigas no se meten en recovecos. *Probado: exigir las 8 vecinas parte los túneles diagonales del pincel de radio 1,5 en trozos sin conexión; con las 4 vecinas quedan conectados.*
-- **Salas:** dentro de una sala terminada, los nodos son la fila central de las 3 filas inferiores (de puerta a puerta). Las salas solo se conectan con el exterior por sus puertas, en horizontal.
+- **Salas:** dentro de una sala terminada (o en plano, §4), los nodos son la fila central de las 3 filas inferiores (de puerta a puerta). Las salas solo se conectan con el exterior por sus puertas, en horizontal.
 - **Superficie:** la fila central de la hierba.
 - **Búsqueda:** A* (8 direcciones) con montículo binario y caché de rutas que se vacía en `CellDug`. Son unas 9.400 casillas, pero los nodos con holgura son muchos menos.
 - **La hormiga no sigue la forma de cada casilla.** La ruta del A* va casilla a casilla, y si la hormiga la siguiera pegada al suelo subiría y bajaría cada escalón del borde. Por eso la ruta se procesa en 3 pasos (ver `guia/ruta_hormiga.png`):

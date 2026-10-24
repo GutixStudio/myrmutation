@@ -4,7 +4,12 @@ namespace Myrmutation.Building
 {
     /// <summary>
     /// Contrato de los trabajos de excavación. La IA (B6) SOLO usa esto, nunca el planificador directamente.
-    /// Flujo de una obrera: TryClaim → ir a job.StandPosition → job.Work cada frame → al terminar o interrumpir, job.Release(ant).
+    /// Flujo de una obrera: TryClaim → ir a job.StandPosition → job.Work(ant, fuerza, Time.deltaTime) cada frame → al
+    /// terminar o interrumpir, job.Release(ant). Usar Work(ant, …), no Work sin hormiga: así el gestor sabe que excava y
+    /// nadie le quita el bloque. Mientras va de camino, comprobar job.HasWorker(ant): si es false, otra más cercana se
+    /// quedó su reserva; tratarlo como IsDone (soltar y volver a pedir).
+    /// Al terminar, conviene llamar a TryClaim en ese mismo frame: devuelve ya el bloque contiguo del mismo plano si el
+    /// gestor se lo tiene reservado (excavación continua), sin pasar por el reparto.
     /// </summary>
     public interface IDigJobs
     {

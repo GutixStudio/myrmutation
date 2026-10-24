@@ -20,12 +20,20 @@ namespace Myrmutation.Building
         [SerializeField] private float fallbackStrength = 1f;
         [Tooltip("Segundos que una obrera que soltó un bloque por quedarse lejos no puede volver a pedir ese mismo bloque, o que una obrera sin ruta no pide ninguno")]
         [SerializeField] private float retryDelay = 1f;
+        [Header("Métrica")]
+        [Tooltip("Segundos (sin escala) entre recuentos de obreras libres junto a un bloque que podrían cavar")]
+        [SerializeField] private float idleCheckInterval = 0.5f;
+        [Tooltip("Casillas (Chebyshev) a las que una obrera libre cuenta como 'junto a' un bloque que se podría trabajar")]
+        [SerializeField] private int idleNearCells = 3;
 
         private readonly Dictionary<Ant, DigJob> jobs = new Dictionary<Ant, DigJob>();
         // Bloque soltado por "parada lejos" (o null si no había ruta: ningún bloque) y hasta cuándo no se puede volver a pedir. Solo se escribe al soltar.
         private readonly Dictionary<Ant, (DigJob job, float until)> blocked = new Dictionary<Ant, (DigJob, float)>();
         private bool paused, warnedNoCaste, warnedFar;
         private int moving, working;   // del último frame, para el inspector
+        // Obreras sin bloque a idleNearCells casillas o menos de algo que podrían cavar (debería ser 0 casi siempre).
+        private int idleNearWork, maxIdleNearWork;
+        private float idleTimer;
 
         private void Update()
         {
@@ -33,6 +41,7 @@ namespace Myrmutation.Building
             var keyboard = Keyboard.current;
             if (keyboard != null && keyboard.xKey.wasPressedThisFrame) TogglePause();
             if (paused || Digging.Current == null) return;
+            CountIdleNearWork();
 
             foreach (var ant in Ant.All)
             {
@@ -53,7 +62,20 @@ namespace Myrmutation.Building
                     continue;
                 }
 
-                if (job.IsDone) { Drop(ant, job); continue; }
+                // Terminado, cancelado o cedido a otra más cercana (aún no lo excavaba).
+                if (job.IsDone || !job.HasWorker(ant))
+                {
+                    Drop(ant, job);
+                    // Excavación continua: si el planificador le guarda otro bloque, va directa sin pasar por Idle.
+                    if (!Digging.Current.TryClaim(ant, out job))
+                    {
+                        if (actuator.Current == AntAction.Moving) actuator.Stop();   // iba a un sitio que ya no es suyo
+                        continue;
+                    }
+                    if (actuator.MoveTo(job.StandPosition)) jobs[ant] = job;
+                    else job.Release(ant);
+                    continue;
+                }
                 if (actuator.Current == AntAction.Moving) { moving++; continue; }
                 // Parada lejos del sitio: la ruta no ha llegado. Se suelta y no lo vuelve a pedir en retryDelay,
                 // para que un fallo así no sea un bucle invisible de pedir y soltar cada frame.
@@ -70,9 +92,20 @@ namespace Myrmutation.Building
                     continue;
                 }
 
-                job.Work(Strength(ant), Time.deltaTime);
+                job.Work(ant, Strength(ant), Time.deltaTime);
                 working++;
             }
+        }
+
+        private void CountIdleNearWork()
+        {
+            idleTimer += Time.unscaledDeltaTime;
+            if (idleTimer < idleCheckInterval || !(Digging.Current is DigPlanner planner)) return;
+            idleTimer = 0f;
+            idleNearWork = 0;
+            foreach (var ant in Ant.All)
+                if (ant.IsAlive && !jobs.ContainsKey(ant) && planner.HasWorkNear(ant.transform.position, idleNearCells)) idleNearWork++;
+            maxIdleNearWork = Mathf.Max(maxIdleNearWork, idleNearWork);
         }
 
         private float Strength(Ant ant)
@@ -123,6 +156,8 @@ namespace Myrmutation.Building
                     UnityEditor.EditorGUILayout.IntField("Con trabajo", d.jobs.Count);
                     UnityEditor.EditorGUILayout.IntField("De camino", d.moving);
                     UnityEditor.EditorGUILayout.IntField("Excavando", d.working);
+                    UnityEditor.EditorGUILayout.IntField("Libres junto a trabajo", d.idleNearWork);
+                    UnityEditor.EditorGUILayout.IntField("Máx. libres junto a trabajo", d.maxIdleNearWork);
                     UnityEditor.EditorGUILayout.Toggle("Parado (X)", d.paused);
                 }
             }

@@ -431,62 +431,309 @@ namespace Myrmutation.Tests
         /// </summary>
         private void DigAllWithTwoWorkers(params Ant[] workers)
         {
-            const float workDistance = 0.15f, dt = 0.1f;   // los de DigTestDriver
             var plan = new List<Vector2Int>();
             for (int y = 0; y < grid.Height; y++)
                 for (int x = 0; x < grid.Width; x++)
                     if (planner.IsPlanned(new Vector2Int(x, y))) plan.Add(new Vector2Int(x, y));
             Assert.Greater(plan.Count, 0);
 
+            Simulate(workers, null);
+
+            foreach (var c in plan) Assert.IsTrue(NestGrid.IsOpen(grid.Get(c)), c.ToString());   // Dug o, en una sala, Room
+            Assert.IsFalse(planner.HasWork);
+        }
+
+        /// <summary>
+        /// Bucle de DigTestDriver: cada obrera sin bloque pide; con bloque, trabaja; al terminarlo lo suelta y pide en el
+        /// mismo frame (excavación continua); si pierde su reserva (HasWorker false), igual. Si se pasa 'diggers', apunta
+        /// qué obreras han cogido cada bloque. Devuelve los frames seguidos más largos que una obrera pasó sin bloque
+        /// después de tener el primero.
+        /// </summary>
+        private int Simulate(Ant[] workers, Dictionary<Vector2Int, HashSet<Ant>> diggers)
+        {
             var jobs = new DigJob[workers.Length];
+            var idle = new int[workers.Length];
+            var started = new bool[workers.Length];
             var path = new List<Vector3>();
-            for (int frame = 0; frame < 5000 && (planner.HasWork || jobs[0] != null || jobs[1] != null); frame++)
+            bool busy = false;
+            int maxIdle = 0;
+            for (int frame = 0; frame < 5000 && (busy || planner.HasWork); frame++)
             {
                 for (int i = 0; i < workers.Length; i++)
                 {
-                    Ant ant = workers[i];
-                    if (jobs[i] == null)
+                    if (jobs[i] == null && !Take(workers[i], out jobs[i], path, diggers))
                     {
-                        if (!planner.TryClaim(ant, out jobs[i])) continue;
-                        Assert.IsTrue(nav.TryGetPath(ant.transform.position, jobs[i].StandPosition, path), $"ruta al bloque {jobs[i].Chunk}");
-                        ant.transform.position = path[path.Count - 1];
-                        float far = Vector2.Distance(ant.transform.position, jobs[i].StandPosition);
-                        Assert.LessOrEqual(far, workDistance, $"la ruta al bloque {jobs[i].Chunk} acaba a {far:0.00} u de StandPosition");
+                        if (started[i]) maxIdle = Mathf.Max(maxIdle, ++idle[i]);
+                        continue;
                     }
-                    jobs[i].Work(1f, dt);
+                    started[i] = true;
+                    idle[i] = 0;
+                    jobs[i].Work(workers[i], 1f, 0.1f);   // dt de DigTestDriver
                 }
                 Tick();
+                busy = false;
                 for (int i = 0; i < workers.Length; i++)
-                    if (jobs[i] != null && jobs[i].IsDone) { jobs[i].Release(workers[i]); jobs[i] = null; }
+                {
+                    if (jobs[i] != null && (jobs[i].IsDone || !jobs[i].HasWorker(workers[i])))
+                    {
+                        jobs[i].Release(workers[i]);
+                        Take(workers[i], out jobs[i], path, diggers);
+                    }
+                    busy |= jobs[i] != null;
+                }
             }
+            return maxIdle;
+        }
 
-            foreach (var c in plan) Assert.AreEqual(CellType.Dug, grid.Get(c), c.ToString());
-            Assert.IsFalse(planner.HasWork);
+        // TryClaim, ruta hasta el sitio (sin pasar por una sala fuera de su suelo) y la obrera colocada en su final.
+        private bool Take(Ant ant, out DigJob job, List<Vector3> path, Dictionary<Vector2Int, HashSet<Ant>> diggers)
+        {
+            const float workDistance = 0.15f;   // el de DigTestDriver
+            if (!planner.TryClaim(ant, out job)) return false;
+            if (diggers != null)
+            {
+                if (!diggers.TryGetValue(job.Chunk, out var set)) diggers[job.Chunk] = set = new HashSet<Ant>();
+                set.Add(ant);
+            }
+            Assert.IsTrue(nav.TryGetPath(ant.transform.position, job.StandPosition, path), $"ruta al bloque {job.Chunk}");
+            // Salas con gravedad: ninguna ruta pasa por una sala (en obras o terminada) fuera de su suelo.
+            for (int p = 1; p < path.Count; p++)
+                for (int s = 0; s <= 4; s++)
+                    Assert.IsFalse(nav.OffRoomFloor(Vector3.Lerp(path[p - 1], path[p], s / 4f), out _), $"ruta al bloque {job.Chunk}, tramo {p}");
+            ant.transform.position = path[path.Count - 1];
+            float far = Vector2.Distance(ant.transform.position, job.StandPosition);
+            Assert.LessOrEqual(far, workDistance, $"la ruta al bloque {job.Chunk} acaba a {far:0.00} u de StandPosition");
+            return true;
         }
 
         [Test]
         public void BloqueDeLaZonaDeAcceso_NoPoneASuObreraEnLaHuellaDeLaSalaEnPlano()
         {
+            // Sala entre el pozo de prueba (x 27–29) y el del mapa inicial (x 59–61): huella x 33–53, y 60–71.
             Shaft();
-            Assert.AreEqual(RoomPlanResult.Ok, planner.PlanRoom(room, new Vector2Int(3, 60)));   // huella x 3–23, y 60–71
-            PaintChunk(8, 20);                    // zona de acceso derecha, x 24–26, y 60–62
-            Dig(new RectInt(18, 60, 6, 9));       // parte de la huella ya vaciada, pegada a la zona de acceso
-            Dig(new RectInt(24, 66, 3, 3));       // y unida al pozo por encima del anillo
-            // x = 23 no es nodo (su derecha es la zona de acceso, sin vaciar). Los dos candidatos quedan a 2 casillas del
-            // bloque y a la misma distancia de su centro: empatan, y sin el arreglo gana el de dentro (se recorre antes).
-            Assert.IsTrue(nav.IsReachable(new Vector2Int(22, 61)), "nodo alcanzable dentro de la huella");
-            Assert.IsTrue(nav.IsReachable(new Vector2Int(28, 61)), "nodo alcanzable en el pozo");
+            Assert.AreEqual(RoomPlanResult.Ok, planner.PlanRoom(room, new Vector2Int(33, 60)));
+            PaintChunk(18, 20);                   // zona de acceso derecha, x 54–56, y 60–62
+            Dig(new RectInt(30, 60, 24, 3));      // zona de acceso izquierda (x 30–32) y capa 0 de la sala, desde el pozo de prueba
+            Dig(new RectInt(57, 60, 2, 3));       // hueco entre la zona de acceso derecha y el pozo del mapa
+            // Con gravedad, dentro de la huella solo hay nodos en su suelo (y = 61), y se llega por la puerta izquierda.
+            // (53, 61) queda a 1 casilla del bloque y (58, 61), fuera, a 2: sin el arreglo ganaría el de dentro.
+            Assert.IsTrue(nav.IsReachable(new Vector2Int(53, 61)), "nodo alcanzable dentro de la huella");
+            Assert.IsTrue(nav.IsReachable(new Vector2Int(58, 61)), "nodo alcanzable fuera");
 
-            var args = new object[] { ChunkIndex(new Vector2Int(25, 61)), null };
-            Assert.IsTrue((bool)typeof(DigPlanner).GetMethod("IsWorkable", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(planner, args));
-            var stand = (Vector2Int)args[1];
-            Assert.IsFalse(new RectInt(3, 60, 21, 12).Contains(stand), $"sitio de la obrera {stand}, dentro de la huella");
+            Assert.IsTrue(Workable(18, 20, out var stand));
+            Assert.IsFalse(new RectInt(33, 60, 21, 12).Contains(stand), $"sitio de la obrera {stand}, dentro de la huella");
+        }
+
+        [Test]
+        public void SalaPorCapas_LaCapa1EsperaATodaLaCapa0_YSeTrabajaDesdeElSuelo()
+        {
+            Shaft();
+            Assert.AreEqual(RoomPlanResult.Ok, planner.PlanRoom(room, new Vector2Int(3, 60)));   // bloques x 1–7, capas y 20–23
+            Dig(new RectInt(24, 60, 3, 3));   // zona de acceso derecha
+
+            Assert.IsTrue(Workable(7, 20, out var stand), "capa 0, junto a la puerta");
+            Assert.AreEqual(new Vector2Int(25, 61), stand, "en el suelo de la zona de acceso, lo más cerca en x");
+            Assert.IsFalse(Workable(6, 20, out _), "capa 0, aún sin vecino excavado");
+
+            Dig(new RectInt(9, 60, 15, 3));   // capa 0 a medias: bloques 3–7
+            Assert.IsTrue(Workable(2, 20, out _), "capa 0 avanza hacia dentro");
+            for (int cx = 1; cx <= 7; cx++) Assert.IsFalse(Workable(cx, 21, out _), $"capa 1, bloque {cx}, con la capa 0 a medias");
+
+            Dig(new RectInt(3, 60, 6, 3));    // capa 0 entera
+            for (int cx = 1; cx <= 7; cx++)
+            {
+                Assert.IsTrue(Workable(cx, 21, out stand), $"capa 1, bloque {cx}");
+                Assert.AreEqual(new Vector2Int(cx * 3 + 1, 61), stand, "de pie en el suelo, en su columna");
+                Assert.IsFalse(Workable(cx, 22, out _), $"capa 2, bloque {cx}");
+            }
+        }
+
+        [Test]
+        public void SalaConGravedad_DosObreras_LaExcavanEnteraDesdeElSuelo_YPasaARoom()
+        {
+            Shaft();
+            var origin = new Vector2Int(3, 60);
+            Assert.AreEqual(RoomPlanResult.Ok, planner.PlanRoom(room, origin));
+            planner.PaintBrush(At(25, 61));   // zona de acceso derecha
+            DigAllWithTwoWorkers(NewAnt(28, 70), NewAnt(28, 50));   // comprueba también que ninguna ruta sale del suelo
+            foreach (var c in new RectInt(origin, room.footprint).allPositionsWithin)
+                Assert.AreEqual(CellType.Room, grid.Get(c), c.ToString());
+        }
+
+        [Test]
+        public void TunelDe6Bloques_Con4Obreras_LoCavaEnteroLaParejaQueEmpezo()
+        {
+            Shaft();
+            planner.PaintStroke(At(30, 61), At(46, 61));   // bloques x 10–15 de la fila 20
+            var ants = new[] { NewAnt(28, 64), NewAnt(28, 66), NewAnt(28, 72), NewAnt(28, 74) };
+            var diggers = new Dictionary<Vector2Int, HashSet<Ant>>();
+            Simulate(ants, diggers);
+
+            Assert.AreEqual(6, diggers.Count, string.Join(", ", diggers.Keys));
+            HashSet<Ant> pair = diggers[new Vector2Int(10, 20)];
+            Assert.AreEqual(2, pair.Count, "empieza una pareja");
+            for (int cx = 10; cx <= 15; cx++)
+                Assert.IsTrue(pair.SetEquals(diggers[new Vector2Int(cx, 20)]), $"bloque {cx}: sin relevos");
+        }
+
+        [Test]
+        public void AlTerminarUnBloque_TieneElSiguienteEnElMismoFrame()
+        {
+            Shaft();
+            planner.PaintStroke(At(30, 61), At(37, 61));   // bloques 10–12
+            var ant = NewAnt(28, 64);
+            Assert.IsTrue(Claim(ant, out var job));
+            Assert.AreEqual(new Vector2Int(10, 20), job.Chunk);
+
+            job.Work(1f, 10f);   // terminado; ni Update del planificador ni reparto
+            Assert.IsTrue(planner.TryClaim(ant, out var next), "sin pasar por libre");
+            Assert.AreEqual(new Vector2Int(11, 20), next.Chunk);
+            Assert.IsFalse(next.IsDone);
+            Assert.AreEqual(1, next.Workers);
+            Assert.AreEqual(CellType.Dug, grid.Get(new Vector2Int(32, 61)), "el terminado ya está vaciado");
+        }
+
+        [Test]
+        public void AlAcabarseElPlano_LaObreraQuedaLibre_YElRepartoLaUsaEnOtro()
+        {
+            Shaft();
+            PaintChunk(10, 20);
+            PaintChunk(10, 4);   // otro plano, lejos
+            var ant = NewAnt(28, 64);
+            Assert.IsTrue(Claim(ant, out var job));
+            Assert.AreEqual(new Vector2Int(10, 20), job.Chunk);
+
+            job.Work(1f, 10f);
+            Assert.IsFalse(planner.TryClaim(ant, out _), "sin bloque contiguo: libre");
+            Call(planner, "Assign");
+            Assert.IsTrue(planner.TryClaim(ant, out var other));
+            Assert.AreEqual(new Vector2Int(10, 4), other.Chunk);
+        }
+
+        [Test]
+        public void ReservaDelSiguiente_LlegaConElProgreso_YSeSueltaSiLaObreraLoDejaAMedias()
+        {
+            Shaft();
+            planner.PaintStroke(At(30, 61), At(46, 61));
+            var ant = NewAnt(28, 64);
+            Assert.IsTrue(Claim(ant, out var job));
+            var reserved = (System.Collections.IDictionary)typeof(DigPlanner)
+                .GetField("nextJobs", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(planner);
+
+            job.Work(1f, 0.9f);   // 60 %: aún no
+            Tick();
+            Assert.AreEqual(0, reserved.Count);
+            job.Work(1f, 0.3f);   // 80 %: la 7.ª casilla abre el paso al bloque 11
+            Tick();
+            Assert.AreEqual(1, reserved.Count, "reservado al llegar a lookAheadProgress");
+
+            job.Release(ant);     // B6 la manda a comer
+            Tick();
+            Assert.AreEqual(0, reserved.Count, "pierde la reserva y su hueco vuelve al reparto");
+        }
+
+        [Test]
+        public void BloqueReservadoPorDosLejanas_LoCogeLaLibreDeAlLado()
+        {
+            Shaft();
+            PaintChunk(10, 20);                                    // sitio en (28, 61)
+            var far = new[] { NewAnt(28, 10), NewAnt(28, 14) };   // de camino, sin llegar nunca
+            Assert.IsTrue(Claim(far[0], out var job));
+            Assert.IsTrue(Claim(far[1], out var same));
+            Assert.AreSame(job, same);
+
+            var near = NewAnt(28, 64);
+            Assert.IsTrue(Claim(near, out var taken), "se lo queda la de al lado");
+            Assert.AreSame(job, taken);
+            Assert.IsFalse(job.HasWorker(far[0]), "la más lejana lo pierde");
+            Assert.IsTrue(job.HasWorker(far[1]));
+            Assert.AreEqual(2, job.Workers);
+        }
+
+        [Test]
+        public void TunelACaballo_UnaObreraSola_LoCavaEnteroSinParar()
+        {
+            Shaft();
+            planner.PaintStroke(At(30, 63), At(45, 63));   // casillas y 62–64: bloques de las filas 20 y 21
+            int idle = Simulate(new[] { NewAnt(28, 70) }, null);
+            Assert.LessOrEqual(idle, 1, "frames seguidos sin bloque");
+            Assert.IsFalse(planner.HasWork);
+            for (int x = 30; x <= 45; x++) Assert.AreEqual(CellType.Dug, grid.Get(new Vector2Int(x, 63)), $"({x}, 63)");
+        }
+
+        [Test]
+        public void TunelACaballo_LaOtraMitadReservadaPorLejanas_LaObreraDeAlLadoNoSePara()
+        {
+            Shaft();
+            planner.PaintStroke(At(30, 63), At(45, 63));
+            var ant = NewAnt(28, 62);
+            Assert.IsTrue(Claim(ant, out var first));
+            // Tres lejanas que no llegan nunca: se reservan los huecos que quedan cerca del frente.
+            foreach (var far in new[] { NewAnt(28, 10), NewAnt(28, 12), NewAnt(28, 14) }) Claim(far, out _);
+
+            int idle = Simulate(new[] { ant }, null);
+            Assert.LessOrEqual(idle, 1, "frames seguidos sin bloque");
+            Assert.IsFalse(planner.HasWork);
+            for (int x = 30; x <= 45; x++) Assert.AreEqual(CellType.Dug, grid.Get(new Vector2Int(x, 63)), $"({x}, 63)");
+        }
+
+        [Test]
+        public void ObreraExcavando_NuncaPierdeSuBloque()
+        {
+            Shaft();
+            PaintChunk(10, 20);
+            var digger = NewAnt(28, 64);
+            Assert.IsTrue(Claim(digger, out var job));
+            digger.transform.position = job.StandPosition;
+            job.Work(digger, 1f, 0.1f);
+
+            var second = NewAnt(28, 64);
+            Assert.IsTrue(Claim(second, out var same));
+            Assert.AreSame(job, same);
+            second.transform.position = job.StandPosition;   // llegada; aún sin Work(ant): cuenta por distancia
+
+            var other = NewAnt(28, 61);
+            other.transform.position = job.StandPosition;    // libre y en el mismo sitio: no es "más cerca"
+            for (int i = 0; i < 3; i++)
+            {
+                Assert.IsFalse(Claim(other, out _));
+                job.Work(digger, 1f, 0.01f);
+            }
+            Assert.IsTrue(job.HasWorker(digger));
+            Assert.IsTrue(job.HasWorker(second));
+        }
+
+        [Test]
+        public void ObreraQueLlamaAWorkLejosDeSuSitio_NoPierdeSuBloque()
+        {
+            Shaft();
+            PaintChunk(10, 20);
+            var digger = NewAnt(28, 64);
+            Assert.IsTrue(Claim(digger, out var job));
+            digger.transform.position = job.StandPosition + Vector3.up * 0.5f;   // 2 casillas por encima del sitio
+            job.Work(digger, 1f, 0.1f);
+            var far = NewAnt(28, 10);
+            Assert.IsTrue(Claim(far, out _), "segundo hueco, de camino");
+
+            var near = NewAnt(28, 61);   // libre, en el sitio: más cerca que las dos
+            Assert.IsTrue(Claim(near, out var taken));
+            Assert.AreSame(job, taken);
+            Assert.IsTrue(job.HasWorker(digger), "excava (Work(ant, …)) aunque esté a 0,5 u");
+            Assert.IsFalse(job.HasWorker(far), "la de camino sí lo cede");
         }
 
         // ================= AUXILIARES =================
 
-        private int ChunkIndex(Vector2Int c) =>
-            (int)typeof(DigPlanner).GetMethod("ChunkIndex", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(planner, new object[] { c });
+        // IsWorkable del bloque (cx, cy), sin pasar por el reparto.
+        private bool Workable(int cx, int cy, out Vector2Int stand)
+        {
+            int k = (int)typeof(DigPlanner).GetMethod("ChunkIndex", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(planner, new object[] { new Vector2Int(cx * 3, cy * 3) });
+            var args = new object[] { k, null };
+            bool ok = (bool)typeof(DigPlanner).GetMethod("IsWorkable", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(planner, args);
+            stand = (Vector2Int)args[1];
+            return ok;
+        }
 
         private void Shaft() => Dig(new RectInt(27, 3, 3, 75));
 

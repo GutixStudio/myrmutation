@@ -10567,23 +10567,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2107217206}
   m_CullTransparentMesh: 1
---- !u!1660057539 &9223372036854775807
-SceneRoots:
-  m_ObjectHideFlags: 0
-  m_Roots:
-  - {fileID: 519420032}
-  - {fileID: 619394802}
-  - {fileID: 1229690654}
-  - {fileID: 1826825332}
-  - {fileID: 460446541}
-  - {fileID: 51848655}
-  - {fileID: 1588136873}
-<<<<<<< HEAD
-  - {fileID: 412327990}
-  - {fileID: 899306165}
-  - {fileID: 920129463}
-  - {fileID: 952473007}
-=======
 --- !u!114 &1826825333
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10601,4 +10584,18 @@ MonoBehaviour:
   onlyOnMobile: 0
   rescanInterval: 0.5
   exclude: []
->>>>>>> origin/develop
+--- !u!1660057539 &9223372036854775807
+SceneRoots:
+  m_ObjectHideFlags: 0
+  m_Roots:
+  - {fileID: 519420032}
+  - {fileID: 619394802}
+  - {fileID: 1229690654}
+  - {fileID: 1826825332}
+  - {fileID: 460446541}
+  - {fileID: 51848655}
+  - {fileID: 1588136873}
+  - {fileID: 412327990}
+  - {fileID: 899306165}
+  - {fileID: 920129463}
+  - {fileID: 952473007}

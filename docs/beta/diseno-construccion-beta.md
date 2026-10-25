@@ -80,17 +80,22 @@ Dentro de una sala terminada, las hormigas caminan por el **suelo** (8 px por en
 
 ## 5. Modo Construcción
 - Botón **Construir** en la barra inferior. Al pulsarlo se activa el **plano azul (blueprint)** sobre el hormiguero:
-  - Rejilla azul (`#3BA3FF`, alfa 0,35) dibujada por **bloques** (0,75 u), no por casillas finas: así no satura y el jugador ve el tamaño de un túnel.
-  - Planos: área azul rellena (alfa 0,5) con rayas diagonales, con la misma forma suave que tendrá el túnel.
-  - Zonas prohibidas (anillos de sala, superficie, bordes): sin rejilla. Al pasar el pincel por encima, se marcan en rojo.
-  - Salas en plano: contorno de la huella y flechas en sus dos puertas.
+  - Papel **opaco** (`#1E3F73`, alfa 1) con textura de papel encima, en todo el mapa: tapa terreno, túneles, arte de salas y hormigas (no se ven franjas de estratos).
+  - Rejilla **por niveles según el zoom**, como papel milimetrado: cuadrados de 9 × 9 casillas, bloques de 3 × 3 y casillas sueltas. Cada nivel aparece con un fundido según el tamaño en pantalla de su cuadrado (se empieza a ver a > 40 px y es opaco a > 80 px): con el mapa casi entero solo se ven los de 9 × 9; al acercar, los de 3 × 3 y, muy cerca, las casillas. Solo se ve en terreno donde se puede construir (más tenue donde no se puede pintar). Líneas de grosor constante en pantalla (2 / 1,5 / 1 px, más marcadas las de nivel superior). Shader `Myrmutation/BlueprintGrid` (`BlueprintGrid.mat`).
+  - Lo existente (túneles, pozo y salas, todo lo excavado): **relleno** azul sólido (`#2E5A9A`, más claro que el papel) sin rejilla dentro, con contorno blanco completo encima (piezas `_bp` y `_line`).
+  - Planos: cada casilla en plano es un **cuadrado** relleno azul claro (`#8FD3FF`, alfa 0,45) con borde fino, alineado con la rejilla.
+  - Zonas prohibidas (superficie, montículo, filas junto a la hierba, anillos de sala): rejilla más tenue. Al pasar el pincel por encima, se marcan en rojo.
+  - Salas en plano: su huella en cuadrados, con el contorno de la huella marcado, y flechas en sus dos puertas.
+  - Orden de dibujo dentro del modo: papel → rejilla → relleno y contorno de lo existente → planos → pincel y fantasma.
+  - Con el modo abierto se ocultan la barra inferior del HUD (Guardería, Expedición, Construir) y la de velocidad; al salir vuelven.
 - **Al entrar, el tiempo se pausa por defecto** y al salir vuelve a la velocidad que había. En el modo hay un botón ▶ para reanudar sin salir (para ver excavar mientras se planifica); al salir con Listo se recupera la velocidad anterior. Las animaciones del plano y de la interfaz usan tiempo sin escala (`unscaledDeltaTime`) para que no se congelen.
 - **Barra de herramientas** (abajo, botones grandes): `Túnel` · `Salas` · `Borrar` · `▶` · `Listo`, más una línea de estado: "Planos: 12 bloques · Obreras libres: 2".
   - **Túnel (pincel):** al arrastrar se estampa un círculo de radio 1,5 casillas cada media casilla del trazo (se interpola entre muestras para que no queden huecos aunque el dedo vaya rápido). Sale un túnel de 3 casillas de ancho que sigue la curva. Tocar una vez estampa un solo círculo.
   - **Salas:** lista de tarjetas (icono, nombre, trabajo, capacidad). Al elegir una, su **fantasma** sigue al dedo o al cursor y se ajusta a la rejilla fina: verde si es válida; roja si no, con el motivo ("Toca otra sala", "Fuera del terreno"). Con ratón se confirma con clic. En táctil se confirma con los botones ✓ / ✕ (para evitar colocar sin querer al arrastrar).
   - **Borrar:** pincel del mismo tamaño que quita casillas en plano. Tocar una sala en plano la cancela.
+- **Táctil:** la herramienta (pincel y fantasma) va justo bajo el dedo. Mientras un dedo pinta o borra aparece una **lupa** como la de iPhone al seleccionar texto: burbuja circular (~140 px, borde blanco fino y sombra) unos 100 px por encima del dedo, o a un lado si no cabe arriba, que muestra ×2 la zona bajo el dedo con el círculo del pincel en el centro. Con ratón no aparece.
 - **Cámara en el modo:** táctil, un dedo usa la herramienta y dos dedos mueven y hacen zoom. Ratón: el izquierdo usa la herramienta; el derecho o la rueda pulsada mueven; la rueda hace zoom.
-- **Fuera del modo,** los planos se siguen viendo tenues (alfa 0,25), y cada sala en obras muestra una etiqueta: "Guardería · 45 %", "Sin acceso" o "Sin obreras libres".
+- **Fuera del modo,** los planos se siguen viendo tenues (los mismos cuadrados, relleno alfa 0,25), y cada sala en obras muestra una etiqueta: "Guardería · 45 %", "Sin acceso" o "Sin obreras libres".
 
 ## 6. Superficie y entrada
 - Franja de superficie visible encima del hormiguero (hierba + cielo).

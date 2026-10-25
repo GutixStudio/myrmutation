@@ -12,21 +12,22 @@ namespace Myrmutation.Building
     /// <summary>
     /// Modo Construcción (diseno-construccion-beta.md §5): pausa al entrar y recupera la velocidad al salir, guarda una
     /// copia del plano para Cancelar (decisiones.md) y aplica las herramientas Túnel, Salas y Borrar con el ratón o un dedo.
-    /// La cámara va en modo herramienta (CameraController.ToolMode). La UI está en BuildModeUI y el dibujo en BlueprintOverlay.
+    /// La cámara va en modo herramienta (CameraController.ToolMode). La UI está en BuildModeUI, el dibujo en BlueprintOverlay
+    /// y, en táctil, la herramienta va justo bajo el dedo con la lupa de BuildMagnifier mientras se pinta o se borra.
     /// </summary>
     public class BuildModeController : MonoBehaviour
     {
         [Tooltip("Planificador. Si se deja vacío, usa Digging.Current")]
         [SerializeField] private DigPlanner planner;
         [SerializeField] private BlueprintOverlay overlay;
+        [Tooltip("Lupa del pincel en táctil (opcional)")]
+        [SerializeField] private BuildMagnifier magnifier;
         [Tooltip("Cámara del juego. Si se deja vacío, usa Camera.main")]
         [SerializeField] private Camera cam;
 
         [Header("Pincel")]
         [Tooltip("Radio del pincel de túnel y de borrar, en casillas")]
         [SerializeField] private float brushRadius = 1.5f;
-        [Tooltip("En táctil, la herramienta va estos píxeles por encima del dedo para que se vea")]
-        [SerializeField] private float touchOffsetPx = 80f;
 
         public bool IsOpen { get; private set; }
         public BuildTool Tool { get; private set; } = BuildTool.Tunnel;
@@ -97,6 +98,7 @@ namespace Myrmutation.Building
             IsOpen = false;
             stroking = false;
             ClearGhost();
+            if (magnifier != null) magnifier.Hide();
             if (GameManager.Instance != null) GameManager.Instance.SetSpeed(previousSpeed);
             CameraController.ToolMode = false;
             if (overlay != null) overlay.SetOpen(false);
@@ -153,8 +155,10 @@ namespace Myrmutation.Building
                 if (t.phase == TouchPhase.Began) gestureOnUI = CameraController.IsOverUI(t.screenPosition);
                 if (gestureOnUI) return;
                 bool ended = t.phase is TouchPhase.Ended or TouchPhase.Canceled;
-                Pointer(ScreenToWorld(t.screenPosition + Vector2.up * touchOffsetPx), t.phase == TouchPhase.Began, !ended, true);
+                Vector3 world = ScreenToWorld(t.screenPosition);
+                Pointer(world, t.phase == TouchPhase.Began, !ended, true);
                 if (ended) HidePointerPreview();
+                else if (Tool != BuildTool.Room && magnifier != null) magnifier.Show(t.screenPosition, world);
                 return;
             }
 
@@ -219,6 +223,7 @@ namespace Myrmutation.Building
         // Al soltar el dedo el pincel desaparece; el fantasma pendiente se queda para ✓ / ✕.
         private void HidePointerPreview()
         {
+            if (magnifier != null) magnifier.Hide();
             if (Tool != BuildTool.Room && overlay != null) overlay.HidePreview();
             if (Tool == BuildTool.Room && !HasPendingRoom) ClearGhost();
         }

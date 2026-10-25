@@ -148,6 +148,40 @@ namespace Myrmutation.Tests
             CollectionAssert.Contains(names, "Room_Nursery");
         }
 
+        [TestCase(CellType.Dug, true)]
+        [TestCase(CellType.Room, true)]
+        [TestCase(CellType.Solid, false)]
+        [TestCase(CellType.Surface, false)]
+        [TestCase(CellType.Blocked, false)]
+        public void ContornoDeLoExistente_IncluyeTunelesYSalas(CellType type, bool drawn) =>
+            Assert.AreEqual(drawn, BlueprintOverlay.IsExisting(type));
+
+        // Un nivel se ve a > 40 px y es opaco a ≥ 80 px. Con el mapa casi entero (~12 px por casilla) solo el de 9×9.
+        [TestCase(4f, 0f, 0f, 0f)]
+        [TestCase(6f, 0.35f, 0f, 0f)]
+        [TestCase(12f, 1f, 0f, 0f)]
+        [TestCase(20f, 1f, 0.5f, 0f)]
+        [TestCase(50f, 1f, 1f, 0.25f)]
+        [TestCase(80f, 1f, 1f, 1f)]
+        public void Rejilla_NivelVisibleSegunElZoom(float pixelsPerCell, float squares9, float blocks3, float cells)
+        {
+            Vector4 a = BlueprintOverlay.GridLevelAlphas(pixelsPerCell, 40f, 80f);
+            Assert.AreEqual(squares9, a.x, 1e-4f, "9×9");
+            Assert.AreEqual(blocks3, a.y, 1e-4f, "3×3");
+            Assert.AreEqual(cells, a.z, 1e-4f, "casillas");
+        }
+
+        [Test]
+        public void Lupa_VaEncimaDelDedo_YCercaDelBordeDeArribaAUnLado()
+        {
+            var screen = new Vector2(1000f, 600f);
+            Assert.AreEqual(new Vector2(500f, 400f), MagnifierAt(new Vector2(500f, 300f), screen), "arriba");
+            Assert.AreEqual(new Vector2(600f, 530f), MagnifierAt(new Vector2(500f, 580f), screen), "a la derecha, sin salirse por arriba");
+            Assert.AreEqual(new Vector2(850f, 500f), MagnifierAt(new Vector2(950f, 500f), screen), "a la izquierda junto al borde derecho");
+        }
+
+        private static Vector2 MagnifierAt(Vector2 finger, Vector2 screen) => BuildMagnifier.BubbleCenter(finger, 70f, 100f, screen);
+
         // Túnel en y = 20 (x 30–50) y una sala en (3, 60).
         private void PlanBefore()
         {

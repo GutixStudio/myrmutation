@@ -4538,6 +4538,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 0c8c13fda2d452142992831d28750747, type: 3}
   noiseSprite: {fileID: 21300000, guid: 088d18c6c82b63e49a74c6b4f5fb8db6, type: 3}
   gridMaterial: {fileID: 2100000, guid: edfd5657cfdf5e040bdc00709a912f3d, type: 2}
+  silhouetteMaterial: {fileID: 2100000, guid: 8cd479b80d269274b94a02d2e23cbfcd, type: 2}
   paperColor: {r: 0.118, g: 0.247, b: 0.451, a: 0.88}
   noiseColor: {r: 1, g: 1, b: 1, a: 0.25}
   gridColor: {r: 1, g: 1, b: 1, a: 0.5}
@@ -4548,6 +4549,7 @@ MonoBehaviour:
   planFillAlpha: 0.45
   planLineAlpha: 0.8
   closedPlanAlpha: 0.25
+  antSilhouetteColor: {r: 0.91, g: 0.957, b: 1, a: 1}
   brushColor: {r: 1, g: 1, b: 1, a: 0.9}
   eraseColor: {r: 0.561, g: 0.827, b: 1, a: 0.9}
   validColor: {r: 0.561, g: 0.827, b: 1, a: 1}
@@ -4555,6 +4557,7 @@ MonoBehaviour:
   levelFadeStartPx: 40
   levelFadeEndPx: 80
   zoneRefreshInterval: 0.3
+  antRefreshInterval: 0.5
   sortingOrder: 300
   closedSortingOrder: 5
   labelSortingOrder: 150

@@ -6,6 +6,7 @@ using Myrmutation.Core;
 using Myrmutation.Core.Data;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
 
 namespace Myrmutation.Tests
@@ -178,6 +179,57 @@ namespace Myrmutation.Tests
             Assert.AreEqual(new Vector2(500f, 400f), MagnifierAt(new Vector2(500f, 300f), screen), "arriba");
             Assert.AreEqual(new Vector2(600f, 530f), MagnifierAt(new Vector2(500f, 580f), screen), "a la derecha, sin salirse por arriba");
             Assert.AreEqual(new Vector2(850f, 500f), MagnifierAt(new Vector2(950f, 500f), screen), "a la izquierda junto al borde derecho");
+        }
+
+        [Test]
+        public void Siluetas_EncimaDelPapelAlAbrir_YComoEstabanAlCerrar()
+        {
+            var original = new Material(Shader.Find("Sprites/Default"));
+            var silhouette = new Material(Shader.Find("Sprites/Default"));
+            var grouped = NewAnt(true, original, out var group, out var groupedParts);
+            var loose = NewAnt(false, original, out _, out var looseParts);
+            var silhouettes = new BlueprintOverlay.Silhouettes(silhouette, 305);
+            try
+            {
+                silhouettes.Apply(grouped);
+                silhouettes.Apply(loose);
+                silhouettes.Apply(grouped);   // repetir no duplica lo guardado
+                Assert.AreEqual(305, group.sortingOrder);
+                Assert.AreEqual(12, groupedParts[0].sortingOrder, "dentro del SortingGroup cada pieza conserva su orden");
+                Assert.AreEqual(305, looseParts[1].sortingOrder, "sin SortingGroup, cada pieza va al orden de las siluetas");
+                foreach (var sr in groupedParts.Concat(looseParts)) Assert.AreSame(silhouette, sr.sharedMaterial);
+
+                silhouettes.RestoreAll();
+                Assert.AreEqual(17, group.sortingOrder);
+                Assert.AreEqual(new[] { 12, 13 }, looseParts.Select(sr => sr.sortingOrder).ToArray());
+                foreach (var sr in groupedParts.Concat(looseParts)) Assert.AreSame(original, sr.sharedMaterial);
+            }
+            finally
+            {
+                Object.DestroyImmediate(grouped.gameObject);
+                Object.DestroyImmediate(loose.gameObject);
+                Object.DestroyImmediate(original);
+                Object.DestroyImmediate(silhouette);
+            }
+        }
+
+        // Hormiga con un hijo Visual (con o sin SortingGroup de orden 17) y dos piezas de orden 12 y 13.
+        private static Ant NewAnt(bool withGroup, Material material, out SortingGroup group, out SpriteRenderer[] parts)
+        {
+            var ant = new GameObject("Ant (test)").AddComponent<Ant>();
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(ant.transform, false);
+            group = withGroup ? visual.AddComponent<SortingGroup>() : null;
+            if (group != null) group.sortingOrder = 17;
+            parts = new SpriteRenderer[2];
+            for (int i = 0; i < parts.Length; i++)
+            {
+                parts[i] = new GameObject($"Pieza {i}").AddComponent<SpriteRenderer>();
+                parts[i].transform.SetParent(visual.transform, false);
+                parts[i].sharedMaterial = material;
+                parts[i].sortingOrder = 12 + i;
+            }
+            return ant;
         }
 
         private static Vector2 MagnifierAt(Vector2 finger, Vector2 screen) => BuildMagnifier.BubbleCenter(finger, 70f, 100f, screen);

@@ -17,15 +17,14 @@ namespace Myrmutation.Building.EditorTools
     /// <summary>
     /// Menú Myrmutation → Crear modo Construcción en la escena (A9; también para Game.unity en A12).
     /// Monta en la escena abierta lo que falte: GameManager, BlueprintOverlay (sprites de Art/Tiles/Placeholder/Blueprint y
-    /// BlueprintGrid.mat, que se crea si falta; se reasignan aunque ya exista), BuildMode
+    /// BlueprintGrid.mat y BlueprintSilhouette.mat, que se crean si faltan; se reasignan aunque ya exista), BuildMode
     /// (BuildModeController), Canvas + EventSystem, la UI con BuildModeUI enlazada y la lupa (BuildMagnifier). No duplica lo que ya existe.
     /// Si hay HUD, sus botones de velocidad van a lockedWhileOpen. Todo con Undo; la escena queda modificada.
     /// </summary>
     public static class BuildModeSetupMenu
     {
         private const string PiecesFolder = "Assets/_Project/Art/Tiles/Placeholder/Blueprint";
-        private const string GridShaderPath = "Assets/_Project/Shaders/BlueprintGrid.shader";
-        private const string GridMaterialPath = "Assets/_Project/Shaders/BlueprintGrid.mat";
+        private const string ShadersFolder = "Assets/_Project/Shaders";
         private const string Tag = "[A9]";
 
         // Glifos que tiene LiberationSans (la fuente por defecto de TMP): ► √ × en vez de ▶ ✓ ✕.
@@ -55,7 +54,8 @@ namespace Myrmutation.Building.EditorTools
             SetArray(overlaySo, "fillPieces", LoadPieces("_bp"));
             SetArray(overlaySo, "linePieces", LoadPieces("_line"));
             Set(overlaySo, "noiseSprite", LoadSprite("bp_paper_noise"));
-            Set(overlaySo, "gridMaterial", GridMaterial());
+            Set(overlaySo, "gridMaterial", ShaderMaterial("BlueprintGrid"));
+            Set(overlaySo, "silhouetteMaterial", ShaderMaterial("BlueprintSilhouette"));
             overlaySo.ApplyModifiedProperties();
 
             var controller = Object.FindFirstObjectByType<BuildModeController>();
@@ -255,15 +255,16 @@ namespace Myrmutation.Building.EditorTools
             return found != null ? found.gameObject : null;
         }
 
-        // BlueprintGrid.mat con el shader del plano; se crea si falta. Al referenciarlo la escena, el shader entra en la build.
-        private static Material GridMaterial()
+        // Shaders/<name>.mat con el shader Shaders/<name>.shader; se crea si falta. Al referenciarlo la escena, el shader entra en la build.
+        private static Material ShaderMaterial(string name)
         {
-            var material = AssetDatabase.LoadAssetAtPath<Material>(GridMaterialPath);
+            string materialPath = $"{ShadersFolder}/{name}.mat", shaderPath = $"{ShadersFolder}/{name}.shader";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
             if (material != null) return material;
-            var shader = AssetDatabase.LoadAssetAtPath<Shader>(GridShaderPath);
-            if (shader == null) { Debug.LogWarning($"{Tag} No está el shader {GridShaderPath}"); return null; }
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(shaderPath);
+            if (shader == null) { Debug.LogWarning($"{Tag} No está el shader {shaderPath}"); return null; }
             material = new Material(shader);
-            AssetDatabase.CreateAsset(material, GridMaterialPath);
+            AssetDatabase.CreateAsset(material, materialPath);
             AssetDatabase.SaveAssets();
             return material;
         }

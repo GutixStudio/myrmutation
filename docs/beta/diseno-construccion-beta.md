@@ -86,7 +86,8 @@ Dentro de una sala terminada, las hormigas caminan por el **suelo** (8 px por en
   - Planos: cada casilla en plano es un **cuadrado** relleno azul claro (`#8FD3FF`, alfa 0,45) con borde fino, alineado con la rejilla.
   - Zonas prohibidas (superficie, montículo, filas junto a la hierba, anillos de sala): rejilla más tenue. Al pasar el pincel por encima, se marcan en rojo.
   - Salas en plano: su huella en cuadrados, con el contorno de la huella marcado, y flechas en sus dos puertas.
-  - Orden de dibujo dentro del modo: papel → rejilla → relleno y contorno de lo existente → planos → pincel y fantasma.
+  - Hormigas (y crías, cuando tengan dibujo): encima del papel como siluetas `#E8F4FF`; al salir, colores y orden normales.
+  - Orden de dibujo dentro del modo: papel → rejilla → relleno y contorno de lo existente → hormigas → planos → pincel y fantasma.
   - Con el modo abierto se ocultan la barra inferior del HUD (Guardería, Expedición, Construir) y la de velocidad; al salir vuelven.
 - **Al entrar, el tiempo se pausa por defecto** y al salir vuelve a la velocidad que había. En el modo hay un botón ▶ para reanudar sin salir (para ver excavar mientras se planifica); al salir con Listo se recupera la velocidad anterior. Las animaciones del plano y de la interfaz usan tiempo sin escala (`unscaledDeltaTime`) para que no se congelen.
 - **Barra de herramientas** (abajo, botones grandes): `Túnel` · `Salas` · `Borrar` · `▶` · `Listo`, más una línea de estado: "Planos: 12 bloques · Obreras libres: 2".

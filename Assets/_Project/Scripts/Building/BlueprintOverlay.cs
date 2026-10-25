@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using Myrmutation.Core;
 using Myrmutation.Economy;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Tilemaps;
 
 namespace Myrmutation.Building
@@ -35,6 +37,8 @@ namespace Myrmutation.Building
         [SerializeField] private Sprite noiseSprite;
         [Tooltip("BlueprintGrid.mat (shader Myrmutation/BlueprintGrid): rejilla y casillas en plano")]
         [SerializeField] private Material gridMaterial;
+        [Tooltip("BlueprintSilhouette.mat (shader Myrmutation/BlueprintSilhouette): hormigas en silueta encima del papel")]
+        [SerializeField] private Material silhouetteMaterial;
 
         [Header("Colores")]
         [Tooltip("Papel. Siempre opaco (se ignora el alfa) para tapar terreno, salas y hormigas")]
@@ -54,6 +58,8 @@ namespace Myrmutation.Building
         [SerializeField] private float planLineAlpha = 0.8f;
         [Tooltip("Alfa del relleno de los planos fuera del modo (los bordes bajan en la misma proporción)")]
         [SerializeField] private float closedPlanAlpha = 0.25f;
+        [Tooltip("Siluetas de las hormigas dentro del modo")]
+        [SerializeField] private Color antSilhouetteColor = new Color(0.910f, 0.957f, 1f, 1f);   // #E8F4FF
         [SerializeField] private Color brushColor = new Color(1f, 1f, 1f, 0.9f);
         [SerializeField] private Color eraseColor = new Color(0.561f, 0.827f, 1f, 0.9f);
         [SerializeField] private Color validColor = new Color(0.561f, 0.827f, 1f, 1f);
@@ -66,9 +72,11 @@ namespace Myrmutation.Building
         [SerializeField] private float levelFadeEndPx = 80f;
         [Tooltip("Segundos (sin escala) entre recálculos de las zonas tenues y de las huellas de sala")]
         [SerializeField] private float zoneRefreshInterval = 0.3f;
+        [Tooltip("Segundos (sin escala) entre revisiones de hormigas nuevas o que vuelven (expedición) con el modo abierto")]
+        [SerializeField] private float antRefreshInterval = 0.5f;
 
         [Header("Orden de dibujo")]
-        [Tooltip("Dentro del modo: el papel; encima, ruido +1, rejilla +2, relleno excavado +3, contorno excavado +4, planos +5 y vista previa +6. Por encima de las hormigas")]
+        [Tooltip("Dentro del modo: el papel; encima, ruido +1, rejilla +2, relleno excavado +3, contorno excavado +4, hormigas +5, planos +6 y vista previa +7. Fuera del modo las hormigas van por debajo")]
         [SerializeField] private int sortingOrder = 300;
         [Tooltip("Planos fuera del modo (por debajo de las hormigas)")]
         [SerializeField] private int closedSortingOrder = 5;
@@ -89,6 +97,7 @@ namespace Myrmutation.Building
         private static readonly int PlanColorId = Shader.PropertyToID("_PlanColor");
         private static readonly int FillAlphaId = Shader.PropertyToID("_FillAlpha");
         private static readonly int LineAlphaId = Shader.PropertyToID("_LineAlpha");
+        private static readonly int SilhouetteColorId = Shader.PropertyToID("_Color");
 
         private enum Layer { Existing, Preview }
 
@@ -115,6 +124,10 @@ namespace Myrmutation.Building
 
         private readonly List<TextMeshPro> labels = new List<TextMeshPro>();
         private float labelTimer;
+
+        private Material antMat;
+        private Silhouettes silhouettes;
+        private float antTimer;
 
         /// <summary>Lo que se dibuja con contorno blanco en el plano: todo lo excavado, túneles y salas.</summary>
         public static bool IsExisting(CellType type) => type == CellType.Dug || type == CellType.Room;
@@ -158,7 +171,14 @@ namespace Myrmutation.Building
             Transform dual = NewGrid("Plano (dual)", modeRoot.transform, dualOrigin, cs);
             existingFillMap = NewTilemap(dual, "Relleno excavado", sortingOrder + 3);
             existingMap = NewTilemap(dual, "Excavado", sortingOrder + 4);
-            previewMap = NewTilemap(dual, "Vista previa", sortingOrder + 6);
+            previewMap = NewTilemap(dual, "Vista previa", sortingOrder + 7);
+            if (silhouetteMaterial != null)
+            {
+                antMat = new Material(silhouetteMaterial);   // una sola para todas las hormigas
+                antMat.SetColor(SilhouetteColorId, antSilhouetteColor);
+                silhouettes = new Silhouettes(antMat, sortingOrder + 5);
+            }
+            else Debug.LogError("BlueprintOverlay: falta silhouetteMaterial; pasa Myrmutation → Crear modo Construcción en la escena", this);
             existingFillMap.color = existingFillColor;
             existingMap.color = existingColor;
 
@@ -183,6 +203,8 @@ namespace Myrmutation.Building
             if (gridMat != null) Destroy(gridMat);
             if (planMat != null) Destroy(planMat);
             if (mask != null) Destroy(mask);
+            silhouettes?.RestoreAll();
+            if (antMat != null) Destroy(antMat);
         }
 
         private void Update()
@@ -195,7 +217,17 @@ namespace Myrmutation.Building
                 mask.Apply(false);
                 maskDirty = false;
             }
-            if (open) { UpdateGridLevels(); return; }
+            if (open)
+            {
+                UpdateGridLevels();
+                antTimer -= Time.unscaledDeltaTime;
+                if (silhouettes != null && antTimer <= 0f)
+                {
+                    antTimer = antRefreshInterval;   // nacidas o vueltas de expedición con el modo abierto
+                    silhouettes.ApplyAll(Ant.All);
+                }
+                return;
+            }
 
             labelTimer -= Time.unscaledDeltaTime;
             if (labelTimer > 0f) return;
@@ -213,7 +245,13 @@ namespace Myrmutation.Building
             {
                 planMat.SetFloat(FillAlphaId, value ? planFillAlpha : closedPlanAlpha);
                 planMat.SetFloat(LineAlphaId, value ? planLineAlpha : planLineAlpha * closedPlanAlpha / planFillAlpha);
-                planRenderer.sortingOrder = value ? sortingOrder + 5 : closedSortingOrder;
+                planRenderer.sortingOrder = value ? sortingOrder + 6 : closedSortingOrder;
+            }
+            if (silhouettes != null)
+            {
+                if (value) silhouettes.ApplyAll(Ant.All);
+                else silhouettes.RestoreAll();
+                antTimer = antRefreshInterval;
             }
             if (value)
             {
@@ -473,6 +511,65 @@ namespace Myrmutation.Building
             label.textWrappingMode = TextWrappingModes.NoWrap;
             label.sortingOrder = labelSortingOrder;
             return label;
+        }
+
+        // ================= HORMIGAS =================
+
+        /// <summary>
+        /// Hormigas en silueta encima del papel mientras el modo está abierto: todas sus piezas pasan al material compartido
+        /// y su SortingGroup (o, si no tiene, cada pieza) al orden dado. Guarda lo que cambia para dejarlo como estaba.
+        /// </summary>
+        public sealed class Silhouettes
+        {
+            private readonly Material material;
+            private readonly int order;
+            private readonly HashSet<Ant> applied = new HashSet<Ant>();
+            private readonly List<(SortingGroup group, int order)> groups = new List<(SortingGroup, int)>(64);
+            private readonly List<(SpriteRenderer renderer, Material material, int order)> renderers =
+                new List<(SpriteRenderer, Material, int)>(512);
+            private readonly List<SpriteRenderer> buffer = new List<SpriteRenderer>(16);
+
+            public Silhouettes(Material material, int order)
+            {
+                this.material = material;
+                this.order = order;
+            }
+
+            /// <summary>Las que aún no estén aplicadas (Ant.All solo tiene las activas).</summary>
+            public void ApplyAll(List<Ant> ants)
+            {
+                for (int i = 0; i < ants.Count; i++) Apply(ants[i]);
+            }
+
+            public void Apply(Ant ant)
+            {
+                if (ant == null || !applied.Add(ant)) return;
+                var group = ant.GetComponentInChildren<SortingGroup>(true);
+                if (group != null)
+                {
+                    groups.Add((group, group.sortingOrder));
+                    group.sortingOrder = order;
+                }
+                ant.GetComponentsInChildren(true, buffer);
+                foreach (var sr in buffer)
+                {
+                    renderers.Add((sr, sr.sharedMaterial, sr.sortingOrder));
+                    sr.sharedMaterial = material;
+                    if (group == null) sr.sortingOrder = order;
+                }
+            }
+
+            /// <summary>Material y orden originales; salta lo destruido entre medias.</summary>
+            public void RestoreAll()
+            {
+                foreach (var (group, groupOrder) in groups)
+                    if (group != null) group.sortingOrder = groupOrder;
+                foreach (var (sr, original, srOrder) in renderers)
+                    if (sr != null) { sr.sharedMaterial = original; sr.sortingOrder = srOrder; }
+                groups.Clear();
+                renderers.Clear();
+                applied.Clear();
+            }
         }
 
         // ================= AUXILIARES =================

@@ -8,7 +8,8 @@ namespace Myrmutation.Building
     /// <summary>
     /// Navegación de la beta sobre la rejilla fina (diseno-construccion-beta.md §7). Mismo contrato INavigator que la alfa.
     /// Nodos: casillas excavadas con holgura, la fila central de las 3 inferiores de cada sala, terminada o en plano (en las salas solo se anda
-    /// en horizontal, así que solo se entra por las puertas) y la fila central de la hierba.
+    /// en horizontal, así que solo se entra por las puertas) y la línea de la superficie, que sigue el relieve de la hierba y del
+    /// montículo (un nodo por columna) y baja por el cráter hasta el pozo.
     /// A* en 8 direcciones sin reservar memoria por búsqueda. Cada ruta se tensa, se redondea (Chaikin) y se baja al suelo
     /// una sola vez y se guarda en caché hasta que cambie una casilla.
     /// También recoloca en el nodo más cercano a las hormigas que se queden dentro de tierra.
@@ -22,7 +23,7 @@ namespace Myrmutation.Building
         [SerializeField] private NestGrid grid;
 
         [Header("Superficie")]
-        [Tooltip("Fila de hierba por la que se camina, contada desde la primera fila de superficie (1 = la central de las 3)")]
+        [Tooltip("Fila por la que se camina en la superficie, contada desde la primera fila libre sobre la hierba o el montículo (1 = la central de las 3)")]
         [SerializeField] private int grassCenterOffset = 1;
 
         [Header("Suavizado")]
@@ -57,7 +58,7 @@ namespace Myrmutation.Building
         private static readonly int[] DirX = { 1, -1, 0, 0, 1, 1, -1, -1 };
         private static readonly int[] DirY = { 0, 0, 1, -1, 1, -1, 1, -1 };
 
-        private int width, height, surfaceRow;
+        private int width, height;
         private bool[] isNode;
         // Huellas de las salas en plano (las marca DigPlanner): por dentro se navega como en una sala terminada.
         private bool[] roomPlan;
@@ -200,6 +201,9 @@ namespace Myrmutation.Building
         /// <summary>Punto donde acaba toda ruta que llega a este nodo: su centro bajado lowerAmount.</summary>
         public Vector3 GroundPoint(Vector2Int node) => grid.CellToWorld(node) + Vector3.down * lowerAmount;
 
+        /// <summary>Nodo de la línea de la superficie en la columna x (sobre la hierba o el montículo).</summary>
+        public Vector2Int SurfaceNode(int x) => new Vector2Int(x, grid.TerrainRows + grid.MoundHeight(x) + grassCenterOffset);
+
         /// <summary>El nodo está conectado con la colonia (reachRootCell) por nodos.</summary>
         public bool IsReachable(Vector2Int node)
         {
@@ -249,7 +253,6 @@ namespace Myrmutation.Building
 
             width = grid.Width;
             height = grid.Height;
-            surfaceRow = grid.TerrainRows;
             int n = width * height;
             isNode = new bool[n];
             roomPlan = new bool[n];
@@ -317,8 +320,9 @@ namespace Myrmutation.Building
                     // Fila central de las 3 inferiores de la sala.
                     return InRoom(x, y - 1) && !InRoom(x, y - 2);
                 case CellType.Surface:
-                    // Fila central de la hierba y, por debajo, la hierba con holgura (la boca del pozo).
-                    return y <= surfaceRow + grassCenterOffset && grid.HasClearance(c);
+                    // La línea de la superficie (sin los bordes del mapa) y, por debajo, lo que tenga holgura: el cráter, que une con el pozo.
+                    int line = SurfaceNode(x).y;
+                    return y == line ? x > 0 && x < width - 1 : y < line && grid.HasClearance(c);
                 default:
                     return false;
             }
@@ -361,8 +365,11 @@ namespace Myrmutation.Building
             if (!InGrid(nx, ny) || !isNode[nb]) return false;
             // En las salas solo se anda en horizontal: así solo se entra por las puertas.
             if (dy != 0 && (InRoom(cx, cy) || InRoom(nx, ny))) return false;
+            if (dx == 0 || dy == 0) return true;
+            // Por las laderas se sube y se baja en diagonal: con un nodo por columna, el desnivel entre vecinas es 0 o 1.
+            if (grid.Get(new Vector2Int(cx, cy)) == CellType.Surface && grid.Get(new Vector2Int(nx, ny)) == CellType.Surface) return true;
             // Sin cortar esquinas: en diagonal, las dos ortogonales tienen que ser nodo.
-            return dx == 0 || dy == 0 || (isNode[cy * width + nx] && isNode[ny * width + cx]);
+            return isNode[cy * width + nx] && isNode[ny * width + cx];
         }
 
         private bool FindCellPath(int start, int goal)

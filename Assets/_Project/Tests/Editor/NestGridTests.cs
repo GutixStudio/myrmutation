@@ -112,6 +112,29 @@ namespace Myrmutation.Tests
         }
 
         [Test]
+        public void MonticuloConCraterSobreElPozoQueNoSeExcava()
+        {
+            // 17 columnas (52–68), laderas de 1 casilla por columna, 5 de alto en la cima (56–64), sobre la fila 78.
+            Assert.AreEqual(CellType.Surface, grid.Get(new Vector2Int(51, 78)), "fuera del montículo");
+            Assert.AreEqual(CellType.Solid, grid.Get(new Vector2Int(52, 78)));
+            Assert.AreEqual(CellType.Surface, grid.Get(new Vector2Int(52, 79)));
+            Assert.AreEqual(CellType.Solid, grid.Get(new Vector2Int(58, 82)));
+            Assert.AreEqual(CellType.Surface, grid.Get(new Vector2Int(58, 83)));
+            Assert.AreEqual(CellType.Solid, grid.Get(new Vector2Int(68, 78)));
+            Assert.AreEqual(CellType.Surface, grid.Get(new Vector2Int(69, 78)));
+            AssertDug(new RectInt(59, 39, 3, 44), "pozo hasta el cráter");
+            Assert.AreEqual(CellType.Surface, grid.Get(new Vector2Int(60, 83)), "boca del cráter");
+
+            grid.Set(new Vector2Int(55, 80), CellType.Dug);
+            Assert.AreEqual(CellType.Solid, grid.Get(new Vector2Int(55, 80)), "el montículo no se excava");
+
+            // Suelo dibujado: la hierba en 78 y la ladera a 45° por las esquinas de arriba de los escalones.
+            Assert.AreEqual(78f, grid.GroundHeightAt(40.5f), 1e-4f);
+            Assert.AreEqual(79.5f, grid.GroundHeightAt(52.5f), 1e-4f);
+            Assert.AreEqual(83f, grid.GroundHeightAt(60.5f), 1e-4f);
+        }
+
+        [Test]
         public void ParedDeLaSalaSalvoZonasDeAcceso()
         {
             // Guardería del mapa inicial: x 35..55, y 39..50.

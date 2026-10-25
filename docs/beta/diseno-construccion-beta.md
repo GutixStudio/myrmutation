@@ -94,8 +94,10 @@ Dentro de una sala terminada, las hormigas caminan por el **suelo** (8 px por en
 
 ## 6. Superficie y entrada
 - Franja de superficie visible encima del hormiguero (hierba + cielo).
-- **Entrada:** montículo con agujero en el centro del mapa (`x = 60`). Un pozo vertical de 3 casillas de ancho viene excavado desde el principio.
-- La hierba es transitable de borde a borde. **Puntos de salida:** los dos extremos de la superficie (fuera de cámara).
+- **Entrada:** montículo con cráter en la cima, centrado en `x = 60` sobre el pozo: ~17 casillas de ancho y 5 de alto sobre la hierba, laderas de 45° como máximo (1 casilla de altura por columna). No se excava. Un pozo vertical de 3 casillas de ancho viene excavado desde el principio y atraviesa el montículo hasta el cráter.
+- **Una sola entrada:** no se planifica nada en el montículo ni en las 2 filas de terreno pegadas a la hierba (salvo en las columnas del pozo).
+- La superficie es transitable de borde a borde siguiendo el relieve (hierba y laderas del montículo); se sale por el cráter. **Puntos de salida:** los dos extremos de la superficie. La cámara ve todo el ancho, así que las hormigas desaparecen y aparecen ahí con un fundido.
+- Decoración (árboles y matorrales) sobre la hierba, sin navegación.
 - **Expediciones:** las hormigas caminan hasta la entrada, suben a la superficie, se van por un lateral y desaparecen. Al volver, aparecen por un lateral, caminan hasta la entrada cargando hoja o presa y entregan el botín al entrar.
 - Más adelante, la entrada será el punto de los eventos: invasores, lluvia y tapones de cabeza (*Pheidole*).
 

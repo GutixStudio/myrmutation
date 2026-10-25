@@ -334,9 +334,12 @@ namespace Myrmutation.Building
             if (EnsureBuilt()) Stroke(a, b, radiusCells, false);
         }
 
-        /// <summary>El pincel de túnel puede marcar la casilla: tierra Solid fuera del anillo y la huella de las salas.</summary>
+        /// <summary>
+        /// El pincel de túnel puede marcar la casilla: tierra Solid fuera del anillo y la huella de las salas, del montículo
+        /// y de las filas pegadas a la hierba (NestGrid.IsSealed: una sola entrada).
+        /// </summary>
         public bool CanPaint(Vector2Int c) =>
-            EnsureBuilt() && InGrid(c) && grid.Get(c) == CellType.Solid && !grid.IsRoomWall(c)
+            EnsureBuilt() && InGrid(c) && grid.Get(c) == CellType.Solid && !grid.IsRoomWall(c) && !grid.IsSealed(c)
             && PlannedRoomPart(c) is Part.None or Part.Access;
 
         private bool Stroke(Vector3 a, Vector3 b, float radius, bool paint)
@@ -416,7 +419,7 @@ namespace Myrmutation.Building
                 {
                     if (t == CellType.Room || part != Part.None || grid.IsAccessZone(c)) return RoomPlanResult.TouchesRoom;
                     if (t == CellType.Dug) return RoomPlanResult.TooCloseToTunnel;
-                    if (t != CellType.Solid) return RoomPlanResult.OutOfTerrain;
+                    if (t != CellType.Solid || grid.IsSealed(c)) return RoomPlanResult.OutOfTerrain;
                 }
                 else if (!left.Contains(c) && !right.Contains(c))
                 {

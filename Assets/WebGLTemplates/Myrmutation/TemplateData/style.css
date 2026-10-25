@@ -1,0 +1,6 @@
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+/* touch-action: none para que pellizco y arrastre lleguen al juego y no al navegador */
+#unity-canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: #000; touch-action: none; outline: none; }
+#unity-loading-bar { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(60vw, 320px); height: 8px; background: #3a3330; border-radius: 4px; overflow: hidden; display: none; }
+#unity-progress-bar-full { width: 0%; height: 100%; background: #C8862E; }
+#unity-warning { position: fixed; left: 50%; top: 5%; transform: translate(-50%); background: white; padding: 10px; display: none; }

@@ -6,6 +6,7 @@ using Myrmutation.Core;
 using Myrmutation.Core.Data;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
 
 namespace Myrmutation.Tests
@@ -147,6 +148,91 @@ namespace Myrmutation.Tests
             CollectionAssert.DoesNotContain(names, "Room_Royal");
             CollectionAssert.Contains(names, "Room_Nursery");
         }
+
+        [TestCase(CellType.Dug, true)]
+        [TestCase(CellType.Room, true)]
+        [TestCase(CellType.Solid, false)]
+        [TestCase(CellType.Surface, false)]
+        [TestCase(CellType.Blocked, false)]
+        public void ContornoDeLoExistente_IncluyeTunelesYSalas(CellType type, bool drawn) =>
+            Assert.AreEqual(drawn, BlueprintOverlay.IsExisting(type));
+
+        // Un nivel se ve a > 40 px y es opaco a ≥ 80 px. Con el mapa casi entero (~12 px por casilla) solo el de 9×9.
+        [TestCase(4f, 0f, 0f, 0f)]
+        [TestCase(6f, 0.35f, 0f, 0f)]
+        [TestCase(12f, 1f, 0f, 0f)]
+        [TestCase(20f, 1f, 0.5f, 0f)]
+        [TestCase(50f, 1f, 1f, 0.25f)]
+        [TestCase(80f, 1f, 1f, 1f)]
+        public void Rejilla_NivelVisibleSegunElZoom(float pixelsPerCell, float squares9, float blocks3, float cells)
+        {
+            Vector4 a = BlueprintOverlay.GridLevelAlphas(pixelsPerCell, 40f, 80f);
+            Assert.AreEqual(squares9, a.x, 1e-4f, "9×9");
+            Assert.AreEqual(blocks3, a.y, 1e-4f, "3×3");
+            Assert.AreEqual(cells, a.z, 1e-4f, "casillas");
+        }
+
+        [Test]
+        public void Lupa_VaEncimaDelDedo_YCercaDelBordeDeArribaAUnLado()
+        {
+            var screen = new Vector2(1000f, 600f);
+            Assert.AreEqual(new Vector2(500f, 400f), MagnifierAt(new Vector2(500f, 300f), screen), "arriba");
+            Assert.AreEqual(new Vector2(600f, 530f), MagnifierAt(new Vector2(500f, 580f), screen), "a la derecha, sin salirse por arriba");
+            Assert.AreEqual(new Vector2(850f, 500f), MagnifierAt(new Vector2(950f, 500f), screen), "a la izquierda junto al borde derecho");
+        }
+
+        [Test]
+        public void Siluetas_EncimaDelPapelAlAbrir_YComoEstabanAlCerrar()
+        {
+            var original = new Material(Shader.Find("Sprites/Default"));
+            var silhouette = new Material(Shader.Find("Sprites/Default"));
+            var grouped = NewAnt(true, original, out var group, out var groupedParts);
+            var loose = NewAnt(false, original, out _, out var looseParts);
+            var silhouettes = new BlueprintOverlay.Silhouettes(silhouette, 305);
+            try
+            {
+                silhouettes.Apply(grouped);
+                silhouettes.Apply(loose);
+                silhouettes.Apply(grouped);   // repetir no duplica lo guardado
+                Assert.AreEqual(305, group.sortingOrder);
+                Assert.AreEqual(12, groupedParts[0].sortingOrder, "dentro del SortingGroup cada pieza conserva su orden");
+                Assert.AreEqual(305, looseParts[1].sortingOrder, "sin SortingGroup, cada pieza va al orden de las siluetas");
+                foreach (var sr in groupedParts.Concat(looseParts)) Assert.AreSame(silhouette, sr.sharedMaterial);
+
+                silhouettes.RestoreAll();
+                Assert.AreEqual(17, group.sortingOrder);
+                Assert.AreEqual(new[] { 12, 13 }, looseParts.Select(sr => sr.sortingOrder).ToArray());
+                foreach (var sr in groupedParts.Concat(looseParts)) Assert.AreSame(original, sr.sharedMaterial);
+            }
+            finally
+            {
+                Object.DestroyImmediate(grouped.gameObject);
+                Object.DestroyImmediate(loose.gameObject);
+                Object.DestroyImmediate(original);
+                Object.DestroyImmediate(silhouette);
+            }
+        }
+
+        // Hormiga con un hijo Visual (con o sin SortingGroup de orden 17) y dos piezas de orden 12 y 13.
+        private static Ant NewAnt(bool withGroup, Material material, out SortingGroup group, out SpriteRenderer[] parts)
+        {
+            var ant = new GameObject("Ant (test)").AddComponent<Ant>();
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(ant.transform, false);
+            group = withGroup ? visual.AddComponent<SortingGroup>() : null;
+            if (group != null) group.sortingOrder = 17;
+            parts = new SpriteRenderer[2];
+            for (int i = 0; i < parts.Length; i++)
+            {
+                parts[i] = new GameObject($"Pieza {i}").AddComponent<SpriteRenderer>();
+                parts[i].transform.SetParent(visual.transform, false);
+                parts[i].sharedMaterial = material;
+                parts[i].sortingOrder = 12 + i;
+            }
+            return ant;
+        }
+
+        private static Vector2 MagnifierAt(Vector2 finger, Vector2 screen) => BuildMagnifier.BubbleCenter(finger, 70f, 100f, screen);
 
         // Túnel en y = 20 (x 30–50) y una sala en (3, 60).
         private void PlanBefore()

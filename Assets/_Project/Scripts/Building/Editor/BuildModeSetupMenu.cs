@@ -16,14 +16,15 @@ namespace Myrmutation.Building.EditorTools
 {
     /// <summary>
     /// Menú Myrmutation → Crear modo Construcción en la escena (A9; también para Game.unity en A12).
-    /// Monta en la escena abierta lo que falte: GameManager, BlueprintOverlay (sprites de Art/Tiles/Placeholder/Blueprint,
-    /// que se reasignan aunque ya exista), BuildMode
-    /// (BuildModeController), Canvas + EventSystem y la UI con BuildModeUI enlazada. No duplica lo que ya existe.
+    /// Monta en la escena abierta lo que falte: GameManager, BlueprintOverlay (sprites de Art/Tiles/Placeholder/Blueprint y
+    /// BlueprintGrid.mat y BlueprintSilhouette.mat, que se crean si faltan; se reasignan aunque ya exista), BuildMode
+    /// (BuildModeController), Canvas + EventSystem, la UI con BuildModeUI enlazada y la lupa (BuildMagnifier). No duplica lo que ya existe.
     /// Si hay HUD, sus botones de velocidad van a lockedWhileOpen. Todo con Undo; la escena queda modificada.
     /// </summary>
     public static class BuildModeSetupMenu
     {
         private const string PiecesFolder = "Assets/_Project/Art/Tiles/Placeholder/Blueprint";
+        private const string ShadersFolder = "Assets/_Project/Shaders";
         private const string Tag = "[A9]";
 
         // Glifos que tiene LiberationSans (la fuente por defecto de TMP): ► √ × en vez de ▶ ✓ ✕.
@@ -52,8 +53,9 @@ namespace Myrmutation.Building.EditorTools
             var overlaySo = new SerializedObject(overlay);
             SetArray(overlaySo, "fillPieces", LoadPieces("_bp"));
             SetArray(overlaySo, "linePieces", LoadPieces("_line"));
-            Set(overlaySo, "gridSprite", LoadSprite("bp_grid_chunk"));
             Set(overlaySo, "noiseSprite", LoadSprite("bp_paper_noise"));
+            Set(overlaySo, "gridMaterial", ShaderMaterial("BlueprintGrid"));
+            Set(overlaySo, "silhouetteMaterial", ShaderMaterial("BlueprintSilhouette"));
             overlaySo.ApplyModifiedProperties();
 
             var controller = Object.FindFirstObjectByType<BuildModeController>();
@@ -67,6 +69,24 @@ namespace Myrmutation.Building.EditorTools
 
             if (Object.FindFirstObjectByType<BuildModeUI>() == null) BuildUI(EnsureCanvas(), controller);
             else Debug.Log($"{Tag} Ya hay BuildModeUI en la escena: no se crea otra.");
+
+            // La lupa también se añade a escenas montadas antes de que existiera.
+            var controllerSo = new SerializedObject(controller);
+            if (controllerSo.FindProperty("magnifier").objectReferenceValue == null)
+            {
+                var magnifier = NewUI("BuildMagnifier", EnsureCanvas().transform).AddComponent<BuildMagnifier>();
+                Undo.RegisterCreatedObjectUndo(magnifier.gameObject, "Crear BuildMagnifier");
+                Set(controllerSo, "magnifier", magnifier);
+                controllerSo.ApplyModifiedProperties();
+            }
+
+            // Barras del HUD que asoman detrás de la barra del modo (también en escenas montadas antes).
+            var uiSo = new SerializedObject(Object.FindFirstObjectByType<BuildModeUI>());
+            if (uiSo.FindProperty("hiddenWhileOpen").arraySize == 0)
+            {
+                SetArray(uiSo, "hiddenWhileOpen", new[] { "BottomBar", "SpeedBar" }.Select(FindInScene).Where(o => o != null).ToArray<Object>());
+                uiSo.ApplyModifiedProperties();
+            }
 
             Undo.CollapseUndoOperations(group);
             EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
@@ -224,6 +244,29 @@ namespace Myrmutation.Building.EditorTools
                 .OrderBy(s => s.name).ToArray<Object>();
             if (pieces.Length != 15) Debug.LogWarning($"{Tag} Se esperaban 15 piezas ms_XXXX{suffix} en {PiecesFolder} y hay {pieces.Length}");
             return pieces;
+        }
+
+        // Objeto de la escena por nombre, aunque esté desactivado; avisa si no está.
+        private static GameObject FindInScene(string name)
+        {
+            var found = Object.FindObjectsByType<RectTransform>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .FirstOrDefault(t => t.name == name);
+            if (found == null) Debug.LogWarning($"{Tag} No está '{name}' en la escena: asígnalo a mano en BuildModeUI → hiddenWhileOpen");
+            return found != null ? found.gameObject : null;
+        }
+
+        // Shaders/<name>.mat con el shader Shaders/<name>.shader; se crea si falta. Al referenciarlo la escena, el shader entra en la build.
+        private static Material ShaderMaterial(string name)
+        {
+            string materialPath = $"{ShadersFolder}/{name}.mat", shaderPath = $"{ShadersFolder}/{name}.shader";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+            if (material != null) return material;
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(shaderPath);
+            if (shader == null) { Debug.LogWarning($"{Tag} No está el shader {shaderPath}"); return null; }
+            material = new Material(shader);
+            AssetDatabase.CreateAsset(material, materialPath);
+            AssetDatabase.SaveAssets();
+            return material;
         }
 
         private static Sprite LoadSprite(string name)

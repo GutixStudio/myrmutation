@@ -734,6 +734,7 @@ MonoBehaviour:
   controller: {fileID: 1544553588}
   buildButton: {fileID: 978887501}
   lockedWhileOpen: []
+  hiddenWhileOpen: []
   toolbar: {fileID: 1428185225}
   tunnelButton: {fileID: 1899066725}
   roomButton: {fileID: 1874996994}
@@ -863,7 +864,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a7abae10575a2084fa0a2779e7f8b10e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  bounds: {fileID: 0}
   minZoom: 3
   maxZoom: 12
   wheelStep: 0.12
@@ -942,9 +942,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1a7a0f60d122a8b4ea4e2cf12a06d4a9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  paused: 0
+  useCrew: 0
+  crewSize: 3
   workDistance: 0.15
   fallbackStrength: 1
   retryDelay: 1
+  idleCheckInterval: 0.5
+  idleNearCells: 3
 --- !u!4 &266666573
 Transform:
   m_ObjectHideFlags: 0
@@ -1546,6 +1551,10 @@ MonoBehaviour:
   clayMultiplier: 1.33
   rockMultiplier: 2
   roomCostIncrease: 0.25
+  assignInterval: 0.5
+  lookAheadProgress: 0.75
+  diggingWindow: 0.2
+  startedDistance: 0.3
 --- !u!1001 &423472674
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4400,24 +4409,22 @@ MonoBehaviour:
   cellSize: 0.25
   soilRows: 24
   clayRows: 27
+  moundCenterX: 60
+  moundHalfWidth: 8
+  moundHeight: 5
+  craterWidth: 3
   startingDug:
   - x: 59
     y: 39
     width: 3
     height: 39
   startingRooms:
-  - x: 35
-    y: 39
-    width: 21
-    height: 12
-  - x: 64
-    y: 39
-    width: 27
-    height: 15
-  - x: 95
-    y: 39
-    width: 21
-    height: 12
+  - data: {fileID: 0}
+    origin: {x: 35, y: 39}
+  - data: {fileID: 0}
+    origin: {x: 64, y: 39}
+  - data: {fileID: 0}
+    origin: {x: 95, y: 39}
 --- !u!4 &1309260058
 Transform:
   m_ObjectHideFlags: 0
@@ -5007,9 +5014,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   planner: {fileID: 0}
   overlay: {fileID: 2010297245}
+  magnifier: {fileID: 2032594685}
   cam: {fileID: 0}
   brushRadius: 1.5
-  touchOffsetPx: 80
 --- !u!4 &1544553589
 Transform:
   m_ObjectHideFlags: 0
@@ -5262,6 +5269,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 182589839}
+  - {fileID: 2032594684}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -5740,6 +5748,7 @@ MonoBehaviour:
   clayColor: {r: 0.6, g: 0.38, b: 0.25, a: 1}
   rockColor: {r: 0.35, g: 0.33, b: 0.32, a: 1}
   backgroundSortingOrder: -10
+  moundSprite: {fileID: 0}
 --- !u!156049354 &1855012605
 Grid:
   m_ObjectHideFlags: 0
@@ -6221,6 +6230,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   nest: {fileID: 0}
   planner: {fileID: 0}
+  cam: {fileID: 0}
   fillPieces:
   - {fileID: 21300000, guid: a7c3ff0634f683745b4a69c1989885bb, type: 3}
   - {fileID: 21300000, guid: 4d4a3bf22115220479bb4494c1077e96, type: 3}
@@ -6253,20 +6263,28 @@ MonoBehaviour:
   - {fileID: 21300000, guid: bf6fb82f45519384a872624e9c643a3a, type: 3}
   - {fileID: 21300000, guid: 908c135de03c5434dbd5cf9563fc8e14, type: 3}
   - {fileID: 21300000, guid: 0c8c13fda2d452142992831d28750747, type: 3}
-  gridSprite: {fileID: 21300000, guid: 17f340a7a99398342a4e3892685d1b4e, type: 3}
   noiseSprite: {fileID: 21300000, guid: 088d18c6c82b63e49a74c6b4f5fb8db6, type: 3}
+  gridMaterial: {fileID: 2100000, guid: edfd5657cfdf5e040bdc00709a912f3d, type: 2}
+  silhouetteMaterial: {fileID: 2100000, guid: 8cd479b80d269274b94a02d2e23cbfcd, type: 2}
   paperColor: {r: 0.118, g: 0.247, b: 0.451, a: 0.88}
   noiseColor: {r: 1, g: 1, b: 1, a: 0.25}
   gridColor: {r: 0.231, g: 0.639, b: 1, a: 0.35}
   dimGridColor: {r: 1, g: 1, b: 1, a: 0.15}
+  existingFillColor: {r: 0.18, g: 0.353, b: 0.604, a: 1}
   existingColor: {r: 1, g: 1, b: 1, a: 0.9}
   planColor: {r: 0.231, g: 0.639, b: 1, a: 1}
-  planFillAlphaOpen: 0.2
-  planFillAlphaClosed: 0.25
+  planFillAlpha: 0.45
+  planLineAlpha: 0.8
+  closedPlanAlpha: 0.25
+  antSilhouetteColor: {r: 0.91, g: 0.957, b: 1, a: 1}
   brushColor: {r: 0.231, g: 0.639, b: 1, a: 0.6}
   eraseColor: {r: 1, g: 1, b: 1, a: 0.45}
   validColor: {r: 0.35, g: 0.9, b: 0.4, a: 0.6}
   invalidColor: {r: 1, g: 0.3, b: 0.25, a: 0.6}
+  levelFadeStartPx: 40
+  levelFadeEndPx: 80
+  zoneRefreshInterval: 0.3
+  antRefreshInterval: 0.5
   sortingOrder: 5
   closedSortingOrder: 5
   labelSortingOrder: 150
@@ -6287,6 +6305,64 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2032594683
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2032594684}
+  - component: {fileID: 2032594685}
+  m_Layer: 5
+  m_Name: BuildMagnifier
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &2032594684
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2032594683}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1559454416}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &2032594685
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2032594683}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 42d46223f8ce25041be6dc199ff0ac48, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  canvas: {fileID: 0}
+  cam: {fileID: 0}
+  diameter: 140
+  offset: 100
+  zoom: 2
+  textureSize: 256
+  borderWidth: 2
+  borderColor: {r: 1, g: 1, b: 1, a: 1}
+  shadowColor: {r: 0, g: 0, b: 0, a: 0.35}
+  shadowOffset: {x: 0, y: -4}
 --- !u!1 &2059842762
 GameObject:
   m_ObjectHideFlags: 0

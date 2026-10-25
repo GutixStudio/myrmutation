@@ -10,8 +10,9 @@ namespace Myrmutation.Building
     /// <summary>
     /// UI del modo Construcción (§5): botón Construir en la barra inferior y, dentro del modo, la barra
     /// Túnel · Salas · Borrar · ▶ · ✓ · ✕, la lista de salas, los botones ✓ / ✕ del fantasma en táctil y la línea
-    /// de estado. Mientras el modo está abierto, los botones de velocidad del HUD (lockedWhileOpen) quedan desactivados:
-    /// ▶ es la única forma de reanudar. Funciona en pausa (tiempo sin escala).
+    /// de estado. Mientras el modo está abierto, los botones de velocidad del HUD (lockedWhileOpen) quedan desactivados y
+    /// ocultos (▶ es la única forma de reanudar) y las barras del HUD de hiddenWhileOpen, ocultas para que no asomen detrás
+    /// de la barra del modo. Funciona en pausa (tiempo sin escala).
     /// </summary>
     public class BuildModeUI : MonoBehaviour
     {
@@ -19,8 +20,10 @@ namespace Myrmutation.Building
 
         [Header("Barra inferior")]
         [SerializeField] private Button buildButton;
-        [Tooltip("Botones que se desactivan mientras el modo está abierto (velocidad y pausa del HUD)")]
+        [Tooltip("Botones que se desactivan y se ocultan mientras el modo está abierto (velocidad y pausa del HUD)")]
         [SerializeField] private Selectable[] lockedWhileOpen;
+        [Tooltip("Objetos del HUD que se ocultan mientras el modo está abierto (BottomBar, SpeedBar); al salir quedan como estaban")]
+        [SerializeField] private GameObject[] hiddenWhileOpen;
 
         [Header("Barra del modo")]
         [SerializeField] private GameObject toolbar;
@@ -51,7 +54,7 @@ namespace Myrmutation.Building
         [SerializeField] private float statusRefreshInterval = 0.25f;
 
         private readonly List<(Button button, RoomData data)> cards = new List<(Button, RoomData)>();
-        private bool[] lockedState;
+        private bool[] lockedState, lockedShown, hiddenShown;
         private bool wasOpen;
         private float statusTimer;
 
@@ -83,6 +86,8 @@ namespace Myrmutation.Building
                 cards.Add((b, data));
             }
             lockedState = new bool[lockedWhileOpen.Length];
+            lockedShown = new bool[lockedWhileOpen.Length];
+            hiddenShown = new bool[hiddenWhileOpen.Length];
             Show(false);
         }
 
@@ -94,6 +99,7 @@ namespace Myrmutation.Building
                 wasOpen = open;
                 Show(open);
                 LockSpeedButtons(open);
+                HideHud(open);
             }
             if (!open) return;
 
@@ -129,7 +135,7 @@ namespace Myrmutation.Building
             statusTimer = 0f;
         }
 
-        // Al entrar guarda si cada botón estaba activo y al salir lo deja como estaba.
+        // Al entrar guarda si cada botón estaba activo y visible y al salir lo deja como estaba.
         private void LockSpeedButtons(bool locked)
         {
             for (int i = 0; i < lockedWhileOpen.Length; i++)
@@ -137,7 +143,20 @@ namespace Myrmutation.Building
                 if (lockedWhileOpen[i] == null) continue;
                 if (locked) { lockedState[i] = lockedWhileOpen[i].interactable; lockedWhileOpen[i].interactable = false; }
                 else lockedWhileOpen[i].interactable = lockedState[i];
+                SetShown(lockedWhileOpen[i].gameObject, lockedShown, i, locked);
             }
+        }
+
+        private void HideHud(bool hidden)
+        {
+            for (int i = 0; i < hiddenWhileOpen.Length; i++)
+                if (hiddenWhileOpen[i] != null) SetShown(hiddenWhileOpen[i], hiddenShown, i, hidden);
+        }
+
+        private static void SetShown(GameObject go, bool[] shown, int i, bool hide)
+        {
+            if (hide) { shown[i] = go.activeSelf; go.SetActive(false); }
+            else go.SetActive(shown[i]);
         }
 
         private void Tint(Button b, bool active)

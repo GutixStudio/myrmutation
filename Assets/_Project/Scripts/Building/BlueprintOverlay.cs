@@ -1,18 +1,22 @@
 using System.Collections.Generic;
+using Myrmutation.Core;
 using Myrmutation.Economy;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Tilemaps;
 
 namespace Myrmutation.Building
 {
     /// <summary>
     /// Plano de arquitecto del modo Construcción (diseno-construccion-beta.md §5). Crea sus propios objetos al arrancar.
-    /// Dentro del modo, por encima del terreno y las hormigas: papel azul marino con ruido, rejilla por bloques (más apagada
-    /// en la superficie y los bordes), contorno blanco de lo excavado, planos en azul claro (relleno + contorno) y la
-    /// vista previa del pincel o del fantasma (contorno; rojo donde no se puede).
-    /// Fuera del modo: solo el relleno tenue de los planos y una etiqueta sobre cada sala en obras.
-    /// Las formas son marching squares (como NestRenderer) con las piezas *_bp (relleno) y *_line (contorno).
+    /// Dentro del modo, por encima del terreno y las hormigas, en este orden: papel azul marino opaco con ruido, rejilla
+    /// por niveles según el zoom (más tenue donde no se puede pintar), lo excavado (túneles, pozo y salas) relleno de azul
+    /// más claro que tapa la rejilla y con contorno blanco, casillas en plano como cuadrados azul claro y la vista previa
+    /// del pincel o del fantasma (contorno; rojo donde no se puede).
+    /// Fuera del modo: los mismos cuadrados de los planos, más tenues, y una etiqueta sobre cada sala en obras.
+    /// La rejilla y los cuadrados los dibuja el shader BlueprintGrid con una máscara de una casilla por píxel; lo
+    /// excavado es marching squares (como NestRenderer) con las piezas *_bp (relleno) y *_line (contorno).
     /// </summary>
     public class BlueprintOverlay : MonoBehaviour
     {
@@ -21,38 +25,60 @@ namespace Myrmutation.Building
         [SerializeField] private NestGrid nest;
         [Tooltip("Planificador. Si se deja vacío, usa Digging.Current")]
         [SerializeField] private DigPlanner planner;
+        [Tooltip("Cámara del juego, para el nivel de la rejilla según el zoom. Si se deja vacío, usa Camera.main")]
+        [SerializeField] private Camera cam;
 
-        [Header("Sprites (Art/Tiles/Placeholder/Blueprint)")]
-        [Tooltip("Las 15 piezas de relleno ms_XXXX_bp, en cualquier orden")]
+        [Header("Arte (Art/Tiles/Placeholder/Blueprint y Shaders)")]
+        [Tooltip("Las 15 piezas de relleno ms_XXXX_bp, en cualquier orden (relleno de lo excavado)")]
         [SerializeField] private Sprite[] fillPieces;
         [Tooltip("Las 15 piezas de contorno ms_XXXX_line, en cualquier orden")]
         [SerializeField] private Sprite[] linePieces;
-        [Tooltip("bp_grid_chunk: baldosa de un bloque (importada con Mesh Type Full Rect y Wrap Mode Repeat)")]
-        [SerializeField] private Sprite gridSprite;
         [Tooltip("bp_paper_noise: ruido del papel que se repite (Full Rect y Repeat)")]
         [SerializeField] private Sprite noiseSprite;
+        [Tooltip("BlueprintGrid.mat (shader Myrmutation/BlueprintGrid): rejilla y casillas en plano")]
+        [SerializeField] private Material gridMaterial;
+        [Tooltip("BlueprintSilhouette.mat (shader Myrmutation/BlueprintSilhouette): hormigas en silueta encima del papel")]
+        [SerializeField] private Material silhouetteMaterial;
 
         [Header("Colores")]
-        [SerializeField] private Color paperColor = new Color(0.118f, 0.247f, 0.451f, 0.88f);   // #1E3F73
+        [Tooltip("Papel. Siempre opaco (se ignora el alfa) para tapar terreno, salas y hormigas")]
+        [SerializeField] private Color paperColor = new Color(0.118f, 0.247f, 0.451f, 1f);   // #1E3F73
         [SerializeField] private Color noiseColor = new Color(1f, 1f, 1f, 0.25f);
         [SerializeField] private Color gridColor = new Color(1f, 1f, 1f, 0.5f);
-        [Tooltip("Rejilla donde no se puede pintar (superficie y bordes)")]
+        [Tooltip("Rejilla donde no se puede pintar (superficie, montículo, filas junto a la hierba y anillos de sala)")]
         [SerializeField] private Color dimGridColor = new Color(1f, 1f, 1f, 0.15f);
+        [Tooltip("Relleno opaco de lo excavado (túneles, pozo y salas), más claro que el papel; tapa la rejilla")]
+        [SerializeField] private Color existingFillColor = new Color(0.180f, 0.353f, 0.604f, 1f);   // #2E5A9A
+        [Tooltip("Contorno de lo excavado")]
         [SerializeField] private Color existingColor = new Color(1f, 1f, 1f, 0.9f);
         [SerializeField] private Color planColor = new Color(0.561f, 0.827f, 1f, 1f);   // #8FD3FF
-        [Tooltip("Alfa del relleno de los planos dentro del modo")]
-        [SerializeField] private float planFillAlphaOpen = 0.2f;
-        [Tooltip("Alfa del relleno de los planos fuera del modo")]
-        [SerializeField] private float planFillAlphaClosed = 0.25f;
+        [Tooltip("Alfa del relleno de las casillas en plano dentro del modo")]
+        [SerializeField] private float planFillAlpha = 0.45f;
+        [Tooltip("Alfa del borde de cada casilla en plano y del contorno de las salas en plano, dentro del modo")]
+        [SerializeField] private float planLineAlpha = 0.8f;
+        [Tooltip("Alfa del relleno de los planos fuera del modo (los bordes bajan en la misma proporción)")]
+        [SerializeField] private float closedPlanAlpha = 0.25f;
+        [Tooltip("Siluetas de las hormigas dentro del modo")]
+        [SerializeField] private Color antSilhouetteColor = new Color(0.910f, 0.957f, 1f, 1f);   // #E8F4FF
         [SerializeField] private Color brushColor = new Color(1f, 1f, 1f, 0.9f);
         [SerializeField] private Color eraseColor = new Color(0.561f, 0.827f, 1f, 0.9f);
         [SerializeField] private Color validColor = new Color(0.561f, 0.827f, 1f, 1f);
         [SerializeField] private Color invalidColor = new Color(1f, 0.42f, 0.42f, 1f);   // #FF6B6B
 
+        [Header("Rejilla por niveles")]
+        [Tooltip("Un nivel (9×9, 3×3 o casilla) empieza a verse cuando su cuadrado mide más de estos píxeles en pantalla")]
+        [SerializeField] private float levelFadeStartPx = 40f;
+        [Tooltip("… y es opaco del todo a partir de estos píxeles")]
+        [SerializeField] private float levelFadeEndPx = 80f;
+        [Tooltip("Segundos (sin escala) entre recálculos de las zonas tenues y de las huellas de sala")]
+        [SerializeField] private float zoneRefreshInterval = 0.3f;
+        [Tooltip("Segundos (sin escala) entre revisiones de hormigas nuevas o que vuelven (expedición) con el modo abierto")]
+        [SerializeField] private float antRefreshInterval = 0.5f;
+
         [Header("Orden de dibujo")]
-        [Tooltip("Dentro del modo: el papel; el resto va encima (+1 … +6). Por encima de las hormigas")]
+        [Tooltip("Dentro del modo: el papel; encima, ruido +1, rejilla +2, relleno excavado +3, contorno excavado +4, hormigas +5, planos +6 y vista previa +7. Fuera del modo las hormigas van por debajo")]
         [SerializeField] private int sortingOrder = 300;
-        [Tooltip("Relleno de los planos fuera del modo (por debajo de las hormigas)")]
+        [Tooltip("Planos fuera del modo (por debajo de las hormigas)")]
         [SerializeField] private int closedSortingOrder = 5;
         [SerializeField] private int labelSortingOrder = 150;
 
@@ -61,15 +87,34 @@ namespace Myrmutation.Building
         [Tooltip("Segundos (sin escala) entre refrescos de las etiquetas")]
         [SerializeField] private float labelRefreshInterval = 0.5f;
 
-        private enum Layer { Existing, Planned, Preview }
+        private static readonly int MaskId = Shader.PropertyToID("_Mask");
+        private static readonly int OriginId = Shader.PropertyToID("_Origin");
+        private static readonly int CellSizeId = Shader.PropertyToID("_CellSize");
+        private static readonly int ModeId = Shader.PropertyToID("_Mode");
+        private static readonly int LevelAlphaId = Shader.PropertyToID("_LevelAlpha");
+        private static readonly int GridColorId = Shader.PropertyToID("_GridColor");
+        private static readonly int DimColorId = Shader.PropertyToID("_DimColor");
+        private static readonly int PlanColorId = Shader.PropertyToID("_PlanColor");
+        private static readonly int FillAlphaId = Shader.PropertyToID("_FillAlpha");
+        private static readonly int LineAlphaId = Shader.PropertyToID("_LineAlpha");
+        private static readonly int SilhouetteColorId = Shader.PropertyToID("_Color");
+
+        private enum Layer { Existing, Preview }
 
         private Tile[] fillTiles, lineTiles;
-        private Tilemap fillMap, existingMap, lineMap, previewMap;
-        private TilemapRenderer fillRenderer;
+        private Tilemap existingFillMap, existingMap, previewMap;
+        private SpriteRenderer planRenderer;
         private GameObject modeRoot;
         private Sprite paperSprite;
+        private Material gridMat, planMat;
         private int w, h;
         private bool open;
+
+        // Máscara del shader, una casilla por píxel. R: rejilla tenue; G: en plano; B: huella de sala en plano.
+        private Texture2D mask;
+        private Color32[] pixels;
+        private bool maskDirty, zonesDirty;
+        private float zoneTimer, lastPixelsPerCell = -1f;
 
         // Vista previa: casillas marcadas y cuáles van en rojo.
         private bool[] preview, previewBad;
@@ -79,6 +124,20 @@ namespace Myrmutation.Building
 
         private readonly List<TextMeshPro> labels = new List<TextMeshPro>();
         private float labelTimer;
+
+        private Material antMat;
+        private Silhouettes silhouettes;
+        private float antTimer;
+
+        /// <summary>Lo que se dibuja con contorno blanco en el plano: todo lo excavado, túneles y salas.</summary>
+        public static bool IsExisting(CellType type) => type == CellType.Dug || type == CellType.Room;
+
+        /// <summary>Opacidad de cada nivel de la rejilla (x: 9×9, y: 3×3, z: casilla) según los píxeles de pantalla por casilla.</summary>
+        public static Vector4 GridLevelAlphas(float pixelsPerCell, float showPx, float solidPx)
+        {
+            float Alpha(int cells) => Mathf.Clamp01((pixelsPerCell * cells - showPx) / (solidPx - showPx));
+            return new Vector4(Alpha(9), Alpha(3), Alpha(1), 0f);
+        }
 
         private void Start()
         {
@@ -95,29 +154,39 @@ namespace Myrmutation.Building
 
             float cs = nest.CellSize;
             Vector3 dualOrigin = nest.transform.position - new Vector3(cs, cs, 0f) * 0.5f;   // rejilla dual, como NestRenderer
+            paperSprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0f, 0f, 4f, 4f), new Vector2(0.5f, 0.5f), 4f);
+            BuildMaterials();
 
-            // Fuera del modo solo queda el relleno de los planos.
-            fillMap = NewTilemap(NewGrid("Planos", transform, dualOrigin, cs), "Relleno", closedSortingOrder, out fillRenderer);
+            // Los planos se ven dentro y fuera del modo.
+            if (planMat != null)
+            {
+                planRenderer = NewSprite("Planos", transform, paperSprite, Color.white, closedSortingOrder);
+                Cover(planRenderer);
+                planRenderer.sharedMaterial = planMat;
+            }
 
             modeRoot = new GameObject("Modo Construcción");
             modeRoot.transform.SetParent(transform, false);
             BuildPaper();
             Transform dual = NewGrid("Plano (dual)", modeRoot.transform, dualOrigin, cs);
-            existingMap = NewTilemap(dual, "Excavado", sortingOrder + 3, out _);
-            lineMap = NewTilemap(dual, "Contorno de planos", sortingOrder + 5, out _);
-            previewMap = NewTilemap(dual, "Vista previa", sortingOrder + 6, out _);
+            existingFillMap = NewTilemap(dual, "Relleno excavado", sortingOrder + 3);
+            existingMap = NewTilemap(dual, "Excavado", sortingOrder + 4);
+            previewMap = NewTilemap(dual, "Vista previa", sortingOrder + 7);
+            if (silhouetteMaterial != null)
+            {
+                antMat = new Material(silhouetteMaterial);   // una sola para todas las hormigas
+                antMat.SetColor(SilhouetteColorId, antSilhouetteColor);
+                silhouettes = new Silhouettes(antMat, sortingOrder + 5);
+            }
+            else Debug.LogError("BlueprintOverlay: falta silhouetteMaterial; pasa Myrmutation → Crear modo Construcción en la escena", this);
+            existingFillMap.color = existingFillColor;
             existingMap.color = existingColor;
-            lineMap.color = planColor;
 
             for (int y = 0; y <= h; y++)
                 for (int x = 0; x <= w; x++)
-                {
-                    var p = new Vector3Int(x, y, 0);
-                    existingMap.SetTile(p, lineTiles[Mask(Layer.Existing, x, y)]);
-                    int plan = Mask(Layer.Planned, x, y);
-                    fillMap.SetTile(p, fillTiles[plan]);
-                    lineMap.SetTile(p, lineTiles[plan]);
-                }
+                    SetExistingTile(x, y);
+            for (int i = 0; i < pixels.Length; i++) pixels[i].g = Flag(planner.IsPlanned(new Vector2Int(i % w, i / w)));
+            zonesDirty = true;
 
             nest.CellChanged += OnCellChanged;
             planner.PlannedChanged += OnPlannedChanged;
@@ -131,11 +200,35 @@ namespace Myrmutation.Building
             if (fillTiles != null) foreach (var t in fillTiles) if (t != null) Destroy(t);
             if (lineTiles != null) foreach (var t in lineTiles) if (t != null) Destroy(t);
             if (paperSprite != null) Destroy(paperSprite);
+            if (gridMat != null) Destroy(gridMat);
+            if (planMat != null) Destroy(planMat);
+            if (mask != null) Destroy(mask);
+            silhouettes?.RestoreAll();
+            if (antMat != null) Destroy(antMat);
         }
 
         private void Update()
         {
-            if (open) return;
+            zoneTimer -= Time.unscaledDeltaTime;
+            if (zonesDirty && zoneTimer <= 0f) RefreshZones();
+            if (maskDirty)
+            {
+                mask.SetPixels32(pixels);
+                mask.Apply(false);
+                maskDirty = false;
+            }
+            if (open)
+            {
+                UpdateGridLevels();
+                antTimer -= Time.unscaledDeltaTime;
+                if (silhouettes != null && antTimer <= 0f)
+                {
+                    antTimer = antRefreshInterval;   // nacidas o vueltas de expedición con el modo abierto
+                    silhouettes.ApplyAll(Ant.All);
+                }
+                return;
+            }
+
             labelTimer -= Time.unscaledDeltaTime;
             if (labelTimer > 0f) return;
             labelTimer = labelRefreshInterval;
@@ -148,11 +241,25 @@ namespace Myrmutation.Building
         {
             open = value;
             modeRoot.SetActive(value);
-            Color c = planColor;
-            c.a = value ? planFillAlphaOpen : planFillAlphaClosed;
-            fillMap.color = c;
-            fillRenderer.sortingOrder = value ? sortingOrder + 4 : closedSortingOrder;
-            if (!value) HidePreview();
+            if (planMat != null)
+            {
+                planMat.SetFloat(FillAlphaId, value ? planFillAlpha : closedPlanAlpha);
+                planMat.SetFloat(LineAlphaId, value ? planLineAlpha : planLineAlpha * closedPlanAlpha / planFillAlpha);
+                planRenderer.sortingOrder = value ? sortingOrder + 6 : closedSortingOrder;
+            }
+            if (silhouettes != null)
+            {
+                if (value) silhouettes.ApplyAll(Ant.All);
+                else silhouettes.RestoreAll();
+                antTimer = antRefreshInterval;
+            }
+            if (value)
+            {
+                zonesDirty = true;   // las zonas tenues solo se recalculan con el modo abierto
+                zoneTimer = 0f;
+                lastPixelsPerCell = -1f;
+            }
+            else HidePreview();
             for (int i = 0; i < labels.Count; i++) labels[i].gameObject.SetActive(false);
             labelTimer = 0f;
         }
@@ -168,8 +275,7 @@ namespace Myrmutation.Building
                 {
                     var c = new Vector2Int(c0.x + dx, c0.y + dy);
                     if (!InGrid(c) || ((Vector2)(nest.CellToWorld(c) - center) / nest.CellSize).sqrMagnitude > radiusCells * radiusCells) continue;
-                    CellType t = nest.Get(c);
-                    if (t == CellType.Dug || t == CellType.Room) continue;   // lo excavado no es prohibido: solo no se pinta
+                    if (IsExisting(nest.Get(c))) continue;   // lo excavado no es prohibido: solo no se pinta
                     nextCells.Add(c);
                 }
             ShowCells(erase ? eraseColor : brushColor, !erase);
@@ -192,41 +298,67 @@ namespace Myrmutation.Building
 
         // ================= DIBUJO =================
 
-        // Papel, ruido y rejilla: SpriteRenderers (Tiled) del tamaño del mapa, ajustados a bloques desde la casilla (0, 0).
-        private void BuildPaper()
+        // Dos copias del material: rejilla (_Mode 0) y planos (_Mode 1), con la misma máscara.
+        private void BuildMaterials()
         {
-            float cs = nest.CellSize, block = cs * NestGrid.ChunkSize;
-            int blocksX = Mathf.CeilToInt(w / (float)NestGrid.ChunkSize);
-            int blocksY = Mathf.CeilToInt(h / (float)NestGrid.ChunkSize);
+            mask = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            pixels = new Color32[w * h];
+            if (gridMaterial == null)
+            {
+                // Sin material no hay rejilla ni cuadrados de los planos; el resto del modo sigue funcionando.
+                Debug.LogError("BlueprintOverlay: falta gridMaterial; pasa Myrmutation → Crear modo Construcción en la escena", this);
+                return;
+            }
             Vector3 origin = nest.transform.position;
-
-            paperSprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0f, 0f, 4f, 4f), new Vector2(0.5f, 0.5f), 4f);
-            Bounds b = nest.WorldBounds;
-            var paper = NewSprite("Papel", paperSprite, paperColor, sortingOrder);
-            paper.transform.position = b.center;
-            paper.transform.localScale = new Vector3(b.size.x, b.size.y, 1f);
-
-            if (noiseSprite != null)
-                Tiled(NewSprite("Ruido", noiseSprite, noiseColor, sortingOrder + 1), origin, new Vector2(b.size.x, b.size.y));
-            if (gridSprite == null) return;
-
-            // Apagada en todo el mapa; normal en el terreno, sin la fila de bloques del borde ni la superficie.
-            Tiled(NewSprite("Rejilla apagada", gridSprite, dimGridColor, sortingOrder + 2), origin, new Vector2(blocksX, blocksY) * block);
-            int terrainBlocks = nest.TerrainRows / NestGrid.ChunkSize;
-            if (blocksX > 2 && terrainBlocks > 1)
-                Tiled(NewSprite("Rejilla", gridSprite, gridColor, sortingOrder + 2), origin + new Vector3(block, block, 0f),
-                      new Vector2(blocksX - 2, terrainBlocks - 1) * block);
+            gridMat = new Material(gridMaterial);
+            planMat = new Material(gridMaterial);
+            foreach (var m in new[] { gridMat, planMat })
+            {
+                m.SetTexture(MaskId, mask);
+                m.SetVector(OriginId, new Vector4(origin.x, origin.y, w, h));
+                m.SetFloat(CellSizeId, nest.CellSize);
+            }
+            gridMat.SetFloat(ModeId, 0f);
+            gridMat.SetColor(GridColorId, gridColor);
+            gridMat.SetColor(DimColorId, dimGridColor);
+            planMat.SetFloat(ModeId, 1f);
+            planMat.SetColor(PlanColorId, planColor);
         }
 
-        private SpriteRenderer NewSprite(string name, Sprite sprite, Color color, int order)
+        // Papel, ruido y rejilla, del tamaño del mapa.
+        private void BuildPaper()
+        {
+            Color paper = paperColor;
+            paper.a = 1f;   // opaco aunque la escena guarde otro alfa: no deben verse los estratos
+            Cover(NewSprite("Papel", modeRoot.transform, paperSprite, paper, sortingOrder));
+
+            Bounds b = nest.WorldBounds;
+            if (noiseSprite != null)
+                Tiled(NewSprite("Ruido", modeRoot.transform, noiseSprite, noiseColor, sortingOrder + 1), nest.transform.position, b.size);
+            if (gridMat == null) return;
+
+            var grid = NewSprite("Rejilla", modeRoot.transform, paperSprite, Color.white, sortingOrder + 2);
+            Cover(grid);
+            grid.sharedMaterial = gridMat;
+        }
+
+        private static SpriteRenderer NewSprite(string name, Transform parent, Sprite sprite, Color color, int order)
         {
             var go = new GameObject(name);
-            go.transform.SetParent(modeRoot.transform, false);
+            go.transform.SetParent(parent, false);
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = sprite;
             sr.color = color;
             sr.sortingOrder = order;
             return sr;
+        }
+
+        // Estira el sprite blanco de 1 × 1 unidad al rectángulo del mapa.
+        private void Cover(SpriteRenderer sr)
+        {
+            Bounds b = nest.WorldBounds;
+            sr.transform.position = b.center;
+            sr.transform.localScale = new Vector3(b.size.x, b.size.y, 1f);
         }
 
         // Repite el sprite en el rectángulo de esquina inferior izquierda 'min' y tamaño 'size' (en unidades).
@@ -237,6 +369,39 @@ namespace Myrmutation.Building
             sr.size = size;
             Vector2 pivot = sr.sprite.pivot / sr.sprite.rect.size;
             sr.transform.position = min + (Vector3)(size * pivot);
+        }
+
+        // Fundido de cada nivel según el tamaño en pantalla de una casilla; solo al cambiar el zoom o el alto de pantalla.
+        private void UpdateGridLevels()
+        {
+            if (cam == null) cam = Camera.main;
+            if (cam == null || gridMat == null) return;
+            float pixelsPerCell = Screen.height / (2f * cam.orthographicSize) * nest.CellSize;
+            if (pixelsPerCell == lastPixelsPerCell) return;
+            lastPixelsPerCell = pixelsPerCell;
+            gridMat.SetVector(LevelAlphaId, GridLevelAlphas(pixelsPerCell, levelFadeStartPx, levelFadeEndPx));
+        }
+
+        // Huellas de las salas en plano y, con el modo abierto, zonas donde no se puede pintar (dependen de las vecinas).
+        private void RefreshZones()
+        {
+            zonesDirty = false;
+            zoneTimer = zoneRefreshInterval;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                pixels[i].b = 0;
+                if (!open) continue;
+                var c = new Vector2Int(i % w, i / w);
+                pixels[i].r = Flag(!IsExisting(nest.Get(c)) && !planner.CanPaint(c));
+            }
+            for (int i = 0; i < planner.RoomCount; i++)
+            {
+                planner.GetRoom(i, out _, out var rect);
+                if (!planner.TryGetRoomState(rect.position, out var state, out _) || state == RoomDigState.Done) continue;
+                foreach (var c in rect.allPositionsWithin)
+                    if (InGrid(c)) pixels[Index(c)].b = 255;
+            }
+            maskDirty = true;
         }
 
         private void ShowCells(Color color, bool markForbidden)
@@ -276,23 +441,29 @@ namespace Myrmutation.Building
 
         private bool IsBad(int x, int y) => x >= 0 && y >= 0 && x < w && y < h && preview[y * w + x] && previewBad[y * w + x];
 
+        // El cuadrado se ve al momento; las huellas y zonas tenues (planificar o cancelar una sala) en el siguiente recálculo.
         private void OnPlannedChanged(Vector2Int c)
         {
-            for (int dy = 0; dy <= 1; dy++)
-                for (int dx = 0; dx <= 1; dx++)
-                {
-                    var p = new Vector3Int(c.x + dx, c.y + dy, 0);
-                    int mask = Mask(Layer.Planned, p.x, p.y);
-                    fillMap.SetTile(p, fillTiles[mask]);
-                    lineMap.SetTile(p, lineTiles[mask]);
-                }
+            if (!InGrid(c)) return;
+            pixels[Index(c)].g = Flag(planner.IsPlanned(c));
+            maskDirty = true;
+            zonesDirty = true;
         }
 
         private void OnCellChanged(Vector2Int c)
         {
             for (int dy = 0; dy <= 1; dy++)
                 for (int dx = 0; dx <= 1; dx++)
-                    existingMap.SetTile(new Vector3Int(c.x + dx, c.y + dy, 0), lineTiles[Mask(Layer.Existing, c.x + dx, c.y + dy)]);
+                    SetExistingTile(c.x + dx, c.y + dy);
+            zonesDirty = true;
+        }
+
+        private void SetExistingTile(int x, int y)
+        {
+            var p = new Vector3Int(x, y, 0);
+            int mask = Mask(Layer.Existing, x, y);
+            existingFillMap.SetTile(p, fillTiles[mask]);
+            existingMap.SetTile(p, lineTiles[mask]);
         }
 
         // Pieza dual (x, y): esquinas en las casillas (x-1, y), (x, y), (x, y-1) y (x-1, y-1), como NestRenderer.
@@ -303,16 +474,9 @@ namespace Myrmutation.Building
         private bool Hollow(Layer layer, int x, int y)
         {
             var c = new Vector2Int(x, y);
-            switch (layer)
-            {
-                case Layer.Existing:
-                    CellType t = nest.Get(c);   // la superficie cuenta como cerrada, como en NestRenderer
-                    return t == CellType.Dug || t == CellType.Room;
-                case Layer.Planned:
-                    return planner.IsPlanned(c);
-                default:
-                    return InGrid(c) && preview[Index(c)];
-            }
+            return layer == Layer.Existing
+                ? IsExisting(nest.Get(c))   // la superficie cuenta como cerrada, como en NestRenderer
+                : InGrid(c) && preview[Index(c)];
         }
 
         // ================= ETIQUETAS =================
@@ -349,6 +513,65 @@ namespace Myrmutation.Building
             return label;
         }
 
+        // ================= HORMIGAS =================
+
+        /// <summary>
+        /// Hormigas en silueta encima del papel mientras el modo está abierto: todas sus piezas pasan al material compartido
+        /// y su SortingGroup (o, si no tiene, cada pieza) al orden dado. Guarda lo que cambia para dejarlo como estaba.
+        /// </summary>
+        public sealed class Silhouettes
+        {
+            private readonly Material material;
+            private readonly int order;
+            private readonly HashSet<Ant> applied = new HashSet<Ant>();
+            private readonly List<(SortingGroup group, int order)> groups = new List<(SortingGroup, int)>(64);
+            private readonly List<(SpriteRenderer renderer, Material material, int order)> renderers =
+                new List<(SpriteRenderer, Material, int)>(512);
+            private readonly List<SpriteRenderer> buffer = new List<SpriteRenderer>(16);
+
+            public Silhouettes(Material material, int order)
+            {
+                this.material = material;
+                this.order = order;
+            }
+
+            /// <summary>Las que aún no estén aplicadas (Ant.All solo tiene las activas).</summary>
+            public void ApplyAll(List<Ant> ants)
+            {
+                for (int i = 0; i < ants.Count; i++) Apply(ants[i]);
+            }
+
+            public void Apply(Ant ant)
+            {
+                if (ant == null || !applied.Add(ant)) return;
+                var group = ant.GetComponentInChildren<SortingGroup>(true);
+                if (group != null)
+                {
+                    groups.Add((group, group.sortingOrder));
+                    group.sortingOrder = order;
+                }
+                ant.GetComponentsInChildren(true, buffer);
+                foreach (var sr in buffer)
+                {
+                    renderers.Add((sr, sr.sharedMaterial, sr.sortingOrder));
+                    sr.sharedMaterial = material;
+                    if (group == null) sr.sortingOrder = order;
+                }
+            }
+
+            /// <summary>Material y orden originales; salta lo destruido entre medias.</summary>
+            public void RestoreAll()
+            {
+                foreach (var (group, groupOrder) in groups)
+                    if (group != null) group.sortingOrder = groupOrder;
+                foreach (var (sr, original, srOrder) in renderers)
+                    if (sr != null) { sr.sharedMaterial = original; sr.sortingOrder = srOrder; }
+                groups.Clear();
+                renderers.Clear();
+                applied.Clear();
+            }
+        }
+
         // ================= AUXILIARES =================
 
         private static Transform NewGrid(string name, Transform parent, Vector3 position, float cellSize)
@@ -360,15 +583,15 @@ namespace Myrmutation.Building
             return go.transform;
         }
 
-        private static Tilemap NewTilemap(Transform parent, string name, int order, out TilemapRenderer renderer)
+        private static Tilemap NewTilemap(Transform parent, string name, int order)
         {
             var go = new GameObject(name, typeof(Tilemap), typeof(TilemapRenderer));
             go.transform.SetParent(parent, false);
-            renderer = go.GetComponent<TilemapRenderer>();
-            renderer.sortingOrder = order;
+            go.GetComponent<TilemapRenderer>().sortingOrder = order;
             return go.GetComponent<Tilemap>();
         }
 
+        private static byte Flag(bool value) => value ? (byte)255 : (byte)0;
         private bool InGrid(Vector2Int c) => c.x >= 0 && c.y >= 0 && c.x < w && c.y < h;
         private int Index(Vector2Int c) => c.y * w + c.x;
     }

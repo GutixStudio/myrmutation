@@ -12,7 +12,8 @@ namespace Myrmutation.Building
     /// Rejilla fina del hormiguero (diseno-construccion-beta.md §2 y §8).
     /// Los datos van en un array plano; (0,0) es la casilla de abajo a la izquierda y
     /// la esquina inferior izquierda del mapa es la posición de este objeto.
-    /// Encima del terreno hay unas filas de superficie que no se excavan.
+    /// Encima del terreno hay unas filas de superficie que no se excavan, con el montículo de la entrada (§6):
+    /// tierra Solid que no se excava, atravesada por el pozo hasta el cráter.
     /// </summary>
     public class NestGrid : MonoBehaviour
     {
@@ -22,6 +23,9 @@ namespace Myrmutation.Building
         // §3: anillo de pared alrededor de las salas y alto de las puertas (= ancho de la zona de acceso).
         public const int RoomWallThickness = 2;
         public const int DoorSize = 3;
+
+        /// <summary>Filas de terreno pegadas a la hierba que no se planifican salvo en las columnas del cráter (una sola entrada).</summary>
+        public const int SealRows = 2;
 
         public static NestGrid Instance { get; private set; }
 
@@ -40,6 +44,16 @@ namespace Myrmutation.Building
         [SerializeField] private int soilRows = 24;
         [Tooltip("Filas de arcilla debajo de la tierra; el resto hasta el fondo es roca")]
         [SerializeField] private int clayRows = 27;
+
+        [Header("Montículo de la entrada")]
+        [Tooltip("Columna central del montículo y del cráter (encima del pozo de entrada)")]
+        [SerializeField] private int moundCenterX = 60;
+        [Tooltip("Columnas a cada lado de la central: ancho total = 2 × esto + 1")]
+        [SerializeField] private int moundHalfWidth = 8;
+        [Tooltip("Alto máximo del montículo sobre el terreno, en casillas. Las laderas suben 1 casilla por columna (45°)")]
+        [SerializeField] private int moundHeight = 5;
+        [Tooltip("Ancho del cráter, igual que el pozo: estas columnas del montículo vienen excavadas")]
+        [SerializeField] private int craterWidth = 3;
 
         [Header("Mapa inicial")]
         [Tooltip("Rectángulos excavados al empezar, en casillas: pozo y túneles entre salas")]
@@ -80,6 +94,9 @@ namespace Myrmutation.Building
         /// <summary>Filas de terreno excavable. La primera fila de superficie es esta (y = TerrainRows).</summary>
         public int TerrainRows => terrainRows;
 
+        /// <summary>Columna central del montículo y del cráter.</summary>
+        public int MoundCenterX => moundCenterX;
+
         /// <summary>Rectángulo del mapa entero (terreno + superficie) en el mundo.</summary>
         public Bounds WorldBounds
         {
@@ -118,6 +135,10 @@ namespace Myrmutation.Building
                     cells[y * width + x] = y >= terrainRows ? CellType.Surface
                         : x == 0 || x == width - 1 || y == 0 ? CellType.Blocked
                         : CellType.Solid;
+
+            for (int x = 0; x < width; x++)
+                for (int y = terrainRows; y < terrainRows + MoundHeight(x); y++)
+                    cells[y * width + x] = IsCraterColumn(x) ? CellType.Dug : CellType.Solid;
 
             foreach (var r in startingDug)
                 for (int y = r.yMin; y < r.yMax; y++)
@@ -171,18 +192,44 @@ namespace Myrmutation.Building
 
         /// <summary>
         /// Cambia una casilla entre Solid, Dug y Room (Solid→Room lo usa A10).
-        /// Superficie y bordes no cambian. Avisa con CellChanged y, si se excava tierra, con CellDug.
+        /// Superficie (con el montículo) y bordes no cambian. Avisa con CellChanged y, si se excava tierra, con CellDug.
         /// </summary>
         public void Set(Vector2Int cell, CellType type)
         {
             if (type == CellType.Surface || type == CellType.Blocked) return;
             CellType old = Get(cell);
-            if (old == type || old == CellType.Surface || old == CellType.Blocked) return;
+            if (old == type || cell.y >= terrainRows || old == CellType.Blocked) return;
 
             cells[cell.y * width + cell.x] = type;
             CellChanged?.Invoke(cell);
             if (old == CellType.Solid && type == CellType.Dug) EventBus.Publish(new CellDug(cell));
         }
+
+        /// <summary>Alto del montículo en esa columna, en casillas sobre el terreno (0 fuera de él). Las del cráter también cuentan.</summary>
+        public int MoundHeight(int x) =>
+            Mathf.Clamp(moundHalfWidth + 1 - Mathf.Abs(x - moundCenterX), 0, moundHeight);
+
+        /// <summary>Columna del cráter (y del pozo de entrada debajo).</summary>
+        public bool IsCraterColumn(int x)
+        {
+            int first = moundCenterX - craterWidth / 2;
+            return x >= first && x < first + craterWidth;
+        }
+
+        /// <summary>
+        /// Altura del suelo de la superficie que se dibuja, en casillas, en la posición x (en casillas, continua): el borde de arriba
+        /// del terreno en la hierba y, en el montículo, la línea que une las esquinas de arriba de sus escalones (45° en las laderas).
+        /// </summary>
+        public float GroundHeightAt(float x)
+        {
+            int k = Mathf.FloorToInt(x);
+            float a = Mathf.Max(MoundHeight(k - 1), MoundHeight(k)), b = Mathf.Max(MoundHeight(k), MoundHeight(k + 1));
+            return terrainRows + Mathf.Lerp(a, b, x - k);
+        }
+
+        /// <summary>No se puede planificar: superficie y montículo, y las SealRows filas de terreno pegadas a la hierba fuera del cráter.</summary>
+        public bool IsSealed(Vector2Int cell) =>
+            cell.y >= terrainRows || (cell.y >= terrainRows - SealRows && !IsCraterColumn(cell.x));
 
         public Stratum StratumAt(Vector2Int cell)
         {

@@ -229,6 +229,53 @@ namespace Myrmutation.Tests
         }
 
         [Test]
+        public void DeLaSalaRealALasDosSalidasPorElCraterSinFlotarNiAtravesarElMonticulo()
+        {
+            var entrance = go.AddComponent<NestEntrance>();
+            Call(entrance, "Reset");
+            float cs = grid.CellSize;
+            Vector3 origin = grid.transform.position;
+
+            foreach (var exit in new[] { entrance.ExitLeft, entrance.ExitRight })
+            {
+                Assert.IsTrue(nav.TryGetPath(At(77, 40), exit, path), $"sin ruta a {exit}");
+                Assert.Less(Vector3.Distance(path[path.Count - 1], exit), 1e-5f, "no acaba en la salida");
+                bool crater = false;
+                for (int i = 0; i < path.Count; i++)
+                {
+                    Vector2Int c = grid.WorldToCell(path[i]);
+                    if (grid.Get(c) == CellType.Surface)
+                    {
+                        float above = (path[i].y - origin.y) / cs - grid.GroundHeightAt((path[i].x - origin.x) / cs);
+                        Assert.That(above, Is.InRange(0f, 1f), $"{exit}: punto {i} {path[i]} a {above:F2} casillas del suelo");
+                        crater |= grid.IsCraterColumn(c.x);
+                    }
+                    if (i == 0) continue;
+                    // Ni los puntos ni los tramos entre ellos se meten en el montículo (ni en la tierra).
+                    for (int s = 0; s <= 10; s++)
+                    {
+                        Vector3 p = Vector3.Lerp(path[i - 1], path[i], s / 10f);
+                        Assert.AreNotEqual(CellType.Solid, grid.Get(grid.WorldToCell(p)), $"{exit}: tramo {i} atraviesa tierra en {p}");
+                    }
+                }
+                Assert.IsTrue(crater, $"{exit}: la ruta no sale por el cráter");
+            }
+        }
+
+        [Test]
+        public void ElCraterEsLaLineaDeLaSuperficieYConectaConElPozo()
+        {
+            var entrance = go.AddComponent<NestEntrance>();
+            Call(entrance, "Reset");
+            Assert.IsTrue(nav.Nearest(entrance.Position, out var crater));
+            Assert.AreEqual(nav.SurfaceNode(60), crater);
+            Assert.AreEqual(new Vector2Int(60, 84), crater, "5 de montículo sobre la fila 78, más 1");
+            Assert.IsTrue(nav.IsReachable(crater));
+            Assert.IsTrue(nav.IsReachable(nav.SurfaceNode(1)) && nav.IsReachable(nav.SurfaceNode(grid.Width - 2)));
+            Assert.IsFalse(nav.IsNode(new Vector2Int(0, 79)), "el borde del mapa no es nodo");
+        }
+
+        [Test]
         public void MedirNodosYTiempoDe30Busquedas()
         {
             int nodes = 0;

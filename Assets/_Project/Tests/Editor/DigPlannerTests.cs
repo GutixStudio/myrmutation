@@ -82,6 +82,23 @@ namespace Myrmutation.Tests
         }
 
         [Test]
+        public void UnaSolaEntrada_NiElMonticuloNiJustoDebajoDeLaHierbaSePlanifican()
+        {
+            Assert.IsFalse(planner.CanPaint(new Vector2Int(55, 80)), "montículo");
+            Assert.IsFalse(planner.CanPaint(new Vector2Int(52, 78)), "base del montículo");
+
+            planner.PaintStroke(At(5, 77), At(50, 77));
+            for (int x = 1; x < grid.Width - 1; x++)
+                for (int y = 76; y < 78; y++)
+                    Assert.IsFalse(planner.IsPlanned(new Vector2Int(x, y)), $"({x}, {y}) justo debajo de la hierba");
+            Assert.IsTrue(planner.CanPaint(new Vector2Int(20, 75)), "la tercera fila bajo la hierba sí");
+
+            // Una sala cuya huella llega a las filas pegadas a la hierba está fuera del terreno.
+            Assert.AreEqual(RoomPlanResult.OutOfTerrain, planner.CheckRoom(room, new Vector2Int(3, 66)));
+            Assert.AreEqual(RoomPlanResult.Ok, planner.CheckRoom(room, new Vector2Int(3, 63)));
+        }
+
+        [Test]
         public void BloqueSinVecinoAlcanzable_NoEsTrabajable_AlExcavarLaUnionSi()
         {
             Shaft();

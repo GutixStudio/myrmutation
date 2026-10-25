@@ -96,7 +96,7 @@ Mismos nombres y mismo contenido que en la alfa, con **medidas nuevas y puertas*
 | `item_leaf.png` | ~100 × 70 px | Trozo de hoja verde en media luna con nervio. La hormiga la lleva sobre la cabeza al volver de expedición |
 | `item_prey.png` | ~110 × 90 px | Insecto genérico redondito boca arriba con ojos en X; cartoon, sin gore |
 
-## 5. Superficie, entrada y estratos · #112 F11 · `Art/Environment/` · 8 PNG
+## 5. Superficie, entrada y estratos · #112 F11 · `Art/Environment/` · 13 PNG
 | Archivo | Tamaño | Qué es |
 |---|---|---|
 | `bg_soil.png` | 512 × 512 | Tierra marrón, **repetible sin cortes** en las 4 direcciones |
@@ -106,7 +106,10 @@ Mismos nombres y mismo contenido que en la alfa, con **medidas nuevas y puertas*
 | `bg_edge_clay_rock.png` | 512 × 96 | Transición arcilla → roca, repetible en horizontal |
 | `surface_grass.png` | 512 × 120 | Línea de hierba sobre la tierra, repetible en horizontal; las hormigas caminan por encima |
 | `surface_sky.png` | 1024 × 480 | Cielo con tallos o plantas lejanas, repetible en horizontal |
-| `nest_entrance.png` | 360 × 240 | Montículo con el agujero de entrada; **agujero de 120 px de ancho, centrado abajo** |
+| `nest_mound.png` | 680 × 200 | Montículo de tierra con el cráter en la cima (17 × 5 casillas a 40 px). Laderas de 45°; **cráter de 120 px de ancho, centrado arriba**, por donde sale el pozo. Fondo transparente, base recta abajo |
+| `tree_1.png` … `tree_3.png` | libre | Árboles de la superficie, fondo transparente, base del tronco abajo y centrada (se estiran al ancho de su sitio manteniendo la proporción) |
+| `bush_1.png`, `bush_2.png` | libre | Matorrales, igual que los árboles |
+| `grass_tuft_1.png` | libre | Mata de hierba suelta, igual que los árboles |
 
 Los estratos son el fondo y tienen que ser **más claros que el interior de los túneles**, para que se lea bien lo excavado.
 

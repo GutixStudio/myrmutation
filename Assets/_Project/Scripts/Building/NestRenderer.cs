@@ -205,8 +205,10 @@ namespace Myrmutation.Building
         {
             // La columna 0 es borde (Blocked); la 1 dice si la fila es superficie.
             if (nest.Get(new Vector2Int(1, y)) == CellType.Surface) return skyColor;
-            Stratum s = nest.StratumAt(new Vector2Int(1, y));
-            return s == Stratum.Soil ? soilColor : s == Stratum.Clay ? clayColor : rockColor;
+            return StratumColor(nest.StratumAt(new Vector2Int(1, y)));
         }
+
+        /// <summary>Color del terreno de un estrato (lo usan también los terrones de DigChunks).</summary>
+        public Color StratumColor(Stratum s) => s == Stratum.Soil ? soilColor : s == Stratum.Clay ? clayColor : rockColor;
     }
 }

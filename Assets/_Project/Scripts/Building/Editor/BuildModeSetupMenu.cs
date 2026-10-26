@@ -18,7 +18,8 @@ namespace Myrmutation.Building.EditorTools
     /// Menú Myrmutation → Crear modo Construcción en la escena (A9; también para Game.unity en A12).
     /// Monta en la escena abierta lo que falte: GameManager, BlueprintOverlay (sprites de Art/Tiles/Placeholder/Blueprint y
     /// BlueprintGrid.mat y BlueprintSilhouette.mat, que se crean si faltan; se reasignan aunque ya exista), BuildMode
-    /// (BuildModeController), Canvas + EventSystem, la UI con BuildModeUI enlazada y la lupa (BuildMagnifier). No duplica lo que ya existe.
+    /// (BuildModeController), Canvas + EventSystem, la UI con BuildModeUI enlazada, la lupa (BuildMagnifier), las grietas
+    /// de excavación (DigCracks) y los terrones (DigChunks, enlazados al NestRenderer). No duplica lo que ya existe.
     /// Si hay HUD, sus botones de velocidad van a lockedWhileOpen. Todo con Undo; la escena queda modificada.
     /// </summary>
     public static class BuildModeSetupMenu
@@ -78,6 +79,23 @@ namespace Myrmutation.Building.EditorTools
                 Undo.RegisterCreatedObjectUndo(magnifier.gameObject, "Crear BuildMagnifier");
                 Set(controllerSo, "magnifier", magnifier);
                 controllerSo.ApplyModifiedProperties();
+            }
+
+            // Grietas de excavación (A8), ocultas con el modo abierto.
+            if (Object.FindFirstObjectByType<DigCracks>() == null)
+            {
+                var cracksSo = new SerializedObject(NewObject("DigCracks").AddComponent<DigCracks>());
+                Set(cracksSo, "buildMode", controller);
+                cracksSo.ApplyModifiedProperties();
+            }
+
+            // Terrones al excavar (A8), con el color del terreno.
+            if (Object.FindFirstObjectByType<DigChunks>() == null)
+            {
+                var chunksSo = new SerializedObject(NewObject("DigChunks").AddComponent<DigChunks>());
+                Set(chunksSo, "buildMode", controller);
+                Set(chunksSo, "nestRenderer", Object.FindFirstObjectByType<NestRenderer>());
+                chunksSo.ApplyModifiedProperties();
             }
 
             // Barras del HUD que asoman detrás de la barra del modo (también en escenas montadas antes).

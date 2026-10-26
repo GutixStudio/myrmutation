@@ -14,7 +14,9 @@ namespace Myrmutation.Building
     /// Sin cuadrilla, maneja a todas las hormigas, que necesitan AntActuator y el AntBrain apagado (Test_A8).
     /// Con cuadrilla (Game.unity mientras no está B6): toma hasta crewSize obreras sin sala, que no sean la reina, y les
     /// suspende el cerebro; se lo devuelve en cuanto el cerebro iría a comer o a descansar (los umbrales de AntNeeds,
-    /// leídos con AntSensor), si le asignan sala o si otro sistema se la lleva, y no la vuelve a tomar hasta que se recupere.
+    /// leídos con AntSensor), si le asignan sala o si otro sistema se la lleva, y no la vuelve a tomar hasta que se recupere
+    /// según por qué salió: si fue por hambre, en cuanto deja de tenerla; si fue cansada o agotada, cuando ha descansado.
+    /// Con logCrew, apunta en la consola cuánto pasa fuera cada obrera y en qué (temporal, para medir).
     /// shortcut: cuadrilla fija con el cerebro suspendido mientras no está B6; quitar DigTestDriver de Game.unity cuando se mezcle B6.
     /// </summary>
     public class DigTestDriver : MonoBehaviour
@@ -38,19 +40,47 @@ namespace Myrmutation.Building
         [SerializeField] private float idleCheckInterval = 0.5f;
         [Tooltip("Casillas (Chebyshev) a las que una obrera libre cuenta como 'junto a' un bloque que se podría trabajar")]
         [SerializeField] private int idleNearCells = 3;
+        [Tooltip("Temporal: apunta en la consola cada salida de la cuadrilla, sus cambios de objetivo (comer, descansar, rutina) y la vuelta, con los tiempos")]
+        [SerializeField] private bool logCrew;
+
+        private enum LeaveReason { Hunger, Tired }
+
+        // Una obrera fuera de la cuadrilla por hambre o cansancio. Los tiempos son de juego (Time.time) y solo se usan con logCrew.
+        private sealed class Away
+        {
+            public LeaveReason Reason;
+            public float LeftAt, GoalSince, EatTime, RestTime, RoutineTime;
+            public BrainGoal Goal;
+        }
 
         private readonly Dictionary<Ant, DigJob> jobs = new Dictionary<Ant, DigJob>();
         // Bloque soltado por "parada lejos" (o null si no había ruta: ningún bloque) y hasta cuándo no se puede volver a pedir. Solo se escribe al soltar.
         private readonly Dictionary<Ant, (DigJob job, float until)> blocked = new Dictionary<Ant, (DigJob, float)>();
         private readonly HashSet<Ant> crew = new HashSet<Ant>();
-        // Soltadas por hambre o cansancio: no vuelven a la cuadrilla hasta que el cerebro las daría por recuperadas.
-        private readonly HashSet<Ant> recovering = new HashSet<Ant>();
+        // Soltadas por hambre o cansancio: no vuelven a la cuadrilla hasta recuperarse según el motivo.
+        private readonly Dictionary<Ant, Away> recovering = new Dictionary<Ant, Away>();
         private readonly List<Ant> leaving = new List<Ant>();
+        private readonly List<Ant> untracked = new List<Ant>();
         private bool appliedPause, warnedNoCaste, warnedFar;
         private int moving, working;   // del último frame, para el inspector
         // Obreras sin bloque a idleNearCells casillas o menos de algo que podrían cavar (debería ser 0 casi siempre).
         private int idleNearWork, maxIdleNearWork;
         private float idleTimer;
+        // Temporal (logCrew): comida de la despensa en el día de juego en curso.
+        private int lastFood = -1, dayStartFood = -1, foodConsumed, foodAdded;
+
+        private void OnEnable()
+        {
+            EventBus.Subscribe<ResourceChanged>(OnResourceChanged);
+            EventBus.Subscribe<DayPassed>(OnDayPassed);
+        }
+
+        private void OnDisable()
+        {
+            EventBus.Unsubscribe<ResourceChanged>(OnResourceChanged);
+            EventBus.Unsubscribe<DayPassed>(OnDayPassed);
+            ReleaseAll();
+        }
 
         private void Update()
         {
@@ -149,6 +179,8 @@ namespace Myrmutation.Building
 
         private void UpdateCrew()
         {
+            StopTrackingGone();
+            if (logCrew) TrackAway();
             leaving.Clear();
             foreach (var ant in crew) if (MustLeave(ant)) leaving.Add(ant);
             foreach (var ant in leaving) Leave(ant);
@@ -162,11 +194,22 @@ namespace Myrmutation.Building
 
         private bool MustLeave(Ant ant)
         {
-            if (ant == null || !ant.IsAlive || !ant.isActiveAndEnabled || ant.AssignedRoom != null) return true;
+            if (ant == null || !ant.IsAlive || !InColony(ant) || ant.AssignedRoom != null) return true;
             // Otro sistema le ha reanudado el cerebro (p. ej. al volver de una expedición).
             if (!ant.TryGetComponent<IAntBrain>(out var brain) || !brain.IsSuspended) return true;
             if (!NeedsBreak(ant)) return false;
-            recovering.Add(ant);
+            ant.TryGetComponent<AntSensor>(out var sensor);
+            var away = new Away
+            {
+                Reason = sensor.IsTired || !sensor.CanWork ? LeaveReason.Tired : LeaveReason.Hunger,
+                LeftAt = Time.time,
+                GoalSince = Time.time,
+                Goal = BrainGoal.Routine,
+            };
+            recovering[ant] = away;
+            if (logCrew)
+                Debug.Log($"[DigTestDriver] {Label(ant)} sale de la cuadrilla por {(away.Reason == LeaveReason.Hunger ? "hambre" : "cansancio")}: " +
+                          $"hambre {sensor.Hunger01:0.00}, energía {sensor.Energy01:0.00}, comida en la despensa {Food()}", ant);
             return true;
         }
 
@@ -176,11 +219,95 @@ namespace Myrmutation.Building
             if (!ant.IsAlive || ant.IsQueen || ant.AssignedRoom != null) return false;
             if (!ant.TryGetComponent(out brain) || brain.IsSuspended || brain.Goal != BrainGoal.Routine) return false;
             if (!ant.TryGetComponent<AntSensor>(out var sensor)) return false;
-            if (!recovering.Contains(ant)) return !NeedsBreak(ant);
-            // Recuperada como la daría el cerebro: saciada y descansada (si se agotó, con la energía completa).
-            if (sensor.IsHungry || !sensor.IsRested || !sensor.CanWork) return false;
+            if (!recovering.TryGetValue(ant, out var away)) return !NeedsBreak(ant);
+            // shortcut: regla de vuelta temporal hasta B6 (revisar con Nicolás). Por hambre, en cuanto ha comido;
+            // cansada o agotada, descansada como la daría el cerebro (si se agotó, con la energía completa).
+            bool recovered = away.Reason == LeaveReason.Hunger
+                ? !NeedsBreak(ant)
+                : !sensor.IsHungry && sensor.IsRested && sensor.CanWork;
+            if (!recovered) return false;
             recovering.Remove(ant);
+            if (logCrew) LogBack(ant, away, sensor);
             return true;
+        }
+
+        // Temporal (logCrew): tiempo en cada objetivo del cerebro mientras está fuera; solo escribe al cambiar.
+        private void TrackAway()
+        {
+            foreach (var pair in recovering)
+            {
+                Ant ant = pair.Key;
+                if (ant == null || !ant.TryGetComponent<IAntBrain>(out var brain) || brain.IsSuspended) continue;
+                Away away = pair.Value;
+                if (brain.Goal == away.Goal) continue;
+                AddGoalTime(away);
+                Debug.Log($"[DigTestDriver] {Label(ant)}: {away.Goal} → {brain.Goal} a los {Time.time - away.LeftAt:0.0} s fuera, " +
+                          $"comida en la despensa {Food()}", ant);
+                away.Goal = brain.Goal;
+            }
+        }
+
+        private static void AddGoalTime(Away away)
+        {
+            float t = Time.time - away.GoalSince;
+            away.GoalSince = Time.time;
+            if (away.Goal == BrainGoal.Eat) away.EatTime += t;
+            else if (away.Goal == BrainGoal.Rest) away.RestTime += t;
+            else away.RoutineTime += t;
+        }
+
+        private static void LogBack(Ant ant, Away away, AntSensor sensor)
+        {
+            AddGoalTime(away);
+            Debug.Log($"[DigTestDriver] {Label(ant)} vuelve a la cuadrilla tras {Time.time - away.LeftAt:0.0} s " +
+                      $"(salió por {(away.Reason == LeaveReason.Hunger ? "hambre" : "cansancio")}; comer {away.EatTime:0.0} s, " +
+                      $"descansar {away.RestTime:0.0} s, rutina {away.RoutineTime:0.0} s): hambre {sensor.Hunger01:0.00}, " +
+                      $"energía {sensor.Energy01:0.00}, comida en la despensa {Food()}", ant);
+        }
+
+        // Fuera de la colonia (expedición, salida por la entrada) o muerta: deja de seguirla. Si vuelve, entra como una más.
+        private void StopTrackingGone()
+        {
+            untracked.Clear();
+            foreach (var pair in recovering)
+                if (pair.Key == null || !pair.Key.IsAlive || !InColony(pair.Key)) untracked.Add(pair.Key);
+            foreach (var ant in untracked)
+            {
+                if (logCrew && ant != null) Debug.Log($"[DigTestDriver] {Label(ant)} sale de la colonia o muere: deja de seguirla", ant);
+                recovering.Remove(ant);
+            }
+        }
+
+        // Dentro de la colonia (en Ant.All): activa y con Ant habilitado. No usa isActiveAndEnabled, que depende de OnEnable.
+        private static bool InColony(Ant ant) => ant.enabled && ant.gameObject.activeInHierarchy;
+
+        // El nombre se repite entre hormigas (Nursery): el id las distingue en el log.
+        private static string Label(Ant ant) => $"{ant.Name}#{ant.GetInstanceID()}";
+
+        private static string Food() =>
+            ResourceManager.Instance != null ? ResourceManager.Instance.Get(ResourceType.Food).ToString() : "—";
+
+        // Temporal (logCrew): entradas y consumo de comida por día de juego, a partir del total que publica ResourceManager.
+        private void OnResourceChanged(ResourceChanged e)
+        {
+            if (e.Type != ResourceType.Food) return;
+            if (lastFood >= 0)
+            {
+                int delta = e.Amount - lastFood;
+                if (delta > 0) foodAdded += delta;
+                else foodConsumed -= delta;
+            }
+            if (dayStartFood < 0) dayStartFood = e.Amount;
+            lastFood = e.Amount;
+        }
+
+        private void OnDayPassed(DayPassed e)
+        {
+            if (logCrew)
+                Debug.Log($"[DigTestDriver] Resumen del día {e.Day - 1}: comida al empezar {(dayStartFood >= 0 ? dayStartFood.ToString() : "—")}, " +
+                          $"consumo {foodConsumed}, entradas {foodAdded}, ahora {Food()}", this);
+            dayStartFood = lastFood;
+            foodConsumed = foodAdded = 0;
         }
 
         // Lo que haría que AntBrain.ChooseGoal la mandase a comer o a descansar.
@@ -198,7 +325,7 @@ namespace Myrmutation.Building
         {
             if (jobs.TryGetValue(ant, out var job)) Drop(ant, job);
             crew.Remove(ant);
-            if (ant == null || !ant.isActiveAndEnabled) return;   // fuera de la colonia: quien se la llevó le devuelve el cerebro
+            if (ant == null || !InColony(ant)) return;   // fuera de la colonia: quien se la llevó le devuelve el cerebro
             if (ant.TryGetComponent<AntActuator>(out var actuator)) actuator.Stop();
             if (ant.TryGetComponent<IAntBrain>(out var brain) && brain.IsSuspended) brain.Resume();
         }
@@ -208,8 +335,6 @@ namespace Myrmutation.Building
             appliedPause = paused;
             if (paused) ReleaseAll();
         }
-
-        private void OnDisable() => ReleaseAll();
 
         private void ReleaseAll()
         {

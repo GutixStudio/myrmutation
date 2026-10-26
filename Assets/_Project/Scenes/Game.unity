@@ -3743,6 +3743,68 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
+--- !u!1 &669835546
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 669835548}
+  - component: {fileID: 669835547}
+  m_Layer: 0
+  m_Name: DigChunks
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &669835547
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 669835546}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72385b919f87f1544bf1cc5f21f022bc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  nest: {fileID: 0}
+  planner: {fileID: 0}
+  buildMode: {fileID: 920129462}
+  nestRenderer: {fileID: 1059231414}
+  chunkSprites: []
+  soilColor: {r: 0.45, g: 0.3, b: 0.18, a: 1}
+  clayColor: {r: 0.6, g: 0.38, b: 0.25, a: 1}
+  rockColor: {r: 0.35, g: 0.33, b: 0.32, a: 1}
+  countRange: {x: 2, y: 3}
+  upSpeed: {x: 4, y: 7}
+  sideSpeed: 3
+  gravity: 30
+  spinSpeed: {x: 90, y: 270}
+  sizeRange: {x: 0.25, y: 0.33333334}
+  lifetime: 0.6
+  poolSize: 64
+  sortingOrder: 9
+  seed: 0
+--- !u!4 &669835548
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 669835546}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &694880737 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4005316638765879390, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
@@ -5174,6 +5236,7 @@ MonoBehaviour:
   retryDelay: 1
   idleCheckInterval: 0.5
   idleNearCells: 3
+  logCrew: 0
 --- !u!4 &952473007
 Transform:
   m_ObjectHideFlags: 0
@@ -5584,6 +5647,17 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1048398256}
   m_CullTransparentMesh: 1
+--- !u!114 &1059231414 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1824014772074012325, guid: 8ace3891638f06b4c84db0d0f4bf3e27, type: 3}
+  m_PrefabInstance: {fileID: 412327990}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 551aa3611f18cee44b4b5a6f09bc367e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1079578369
 GameObject:
   m_ObjectHideFlags: 0
@@ -6441,6 +6515,61 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6aada07c204d4db4db72dabb713a4d81, type: 3}
+--- !u!1 &1210761784
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1210761786}
+  - component: {fileID: 1210761785}
+  m_Layer: 0
+  m_Name: DigCracks
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1210761785
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1210761784}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c16954fc85b91a84a9091683176d46ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  nest: {fileID: 0}
+  planner: {fileID: 0}
+  buildMode: {fileID: 920129462}
+  crack1: {fileID: 0}
+  crack2: {fileID: 0}
+  crack3: {fileID: 0}
+  poolSize: 32
+  sortingOrder: 8
+  placeholderColor: {r: 0.12, g: 0.08, b: 0.05, a: 0.85}
+  abandonedAlpha: 0.4
+  diggingWindow: 0.5
+--- !u!4 &1210761786
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1210761784}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1222898705 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8864650367434385086, guid: 02a5c18f7080bb842821a3eaf2bd49a6, type: 3}
@@ -10785,3 +10914,5 @@ SceneRoots:
   - {fileID: 920129463}
   - {fileID: 952473007}
   - {fileID: 943836385}
+  - {fileID: 1210761786}
+  - {fileID: 669835548}

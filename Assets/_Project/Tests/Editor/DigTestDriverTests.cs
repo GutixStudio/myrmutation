@@ -52,7 +52,7 @@ namespace Myrmutation.Tests
         }
 
         [Test]
-        public void ConHambre_DevuelveElCerebro_YNoLaRetomaHastaQueSeRecupera()
+        public void ConHambre_DevuelveElCerebro_YLaRetomaEnCuantoHaComido()
         {
             var ant = NewAnt(false);
             var needs = ant.GetComponent<AntNeeds>();
@@ -60,16 +60,72 @@ namespace Myrmutation.Tests
             Assert.AreEqual(1, Crew().Count);
 
             Set(needs, "hunger", 0.7f);   // por encima de hungryThreshold (0,6)
+            Set(needs, "energy", 0.7f);
             UpdateCrew();
             Assert.AreEqual(0, Crew().Count);
             Assert.IsFalse(ant.GetComponent<AntBrain>().IsSuspended, "el cerebro la manda a comer");
 
-            Set(needs, "hunger", 0f);
-            Set(needs, "energy", 0.9f);   // ni cansada ni descansada (restedThreshold 0,95)
+            Set(needs, "hunger", 0f);     // ha comido; energía 0,7: ni cansada ni descansada
             UpdateCrew();
-            Assert.AreEqual(0, Crew().Count, "aún no se ha recuperado");
+            Assert.AreEqual(1, Crew().Count, "salió por hambre: no espera a estar descansada");
+        }
+
+        [Test]
+        public void Cansada_NoLaRetomaHastaQueHaDescansado()
+        {
+            var ant = NewAnt(false);
+            var needs = ant.GetComponent<AntNeeds>();
+            UpdateCrew();
+
+            Set(needs, "energy", 0.2f);   // por debajo de tiredThreshold (0,25)
+            UpdateCrew();
+            Assert.AreEqual(0, Crew().Count);
+
+            Set(needs, "energy", 0.9f);   // ya no está cansada, pero aún no ha descansado (restedThreshold 0,95)
+            UpdateCrew();
+            Assert.AreEqual(0, Crew().Count, "salió cansada: espera a estar descansada");
 
             Set(needs, "energy", 1f);
+            UpdateCrew();
+            Assert.AreEqual(1, Crew().Count);
+        }
+
+        [Test]
+        public void RecuperandoseYSeLaLlevaUnaExpedicion_DejaDeSeguirla_YAlVolverEntraComoUnaMas()
+        {
+            var ant = NewAnt(false);
+            var needs = ant.GetComponent<AntNeeds>();
+            UpdateCrew();
+            Set(needs, "hunger", 0.7f);
+            UpdateCrew();
+            Assert.IsTrue(Recovering().Contains(ant), "salió por hambre");
+
+            Expedition(ant, true);
+            UpdateCrew();
+            Assert.IsFalse(Recovering().Contains(ant), "fuera de la colonia no se sigue");
+            Assert.AreEqual(0, Crew().Count);
+
+            Set(needs, "hunger", 0f);
+            Expedition(ant, false);
+            UpdateCrew();
+            Assert.AreEqual(1, Crew().Count, "vuelve sin necesidades: entra");
+            Assert.AreEqual(0, Recovering().Count);
+        }
+
+        [Test]
+        public void EnLaCuadrillaYSeLaLlevaUnaExpedicion_SaleSinReanudarleElCerebro_YAlVolverEntra()
+        {
+            var ant = NewAnt(false);
+            var brain = ant.GetComponent<AntBrain>();
+            UpdateCrew();
+
+            Expedition(ant, true);
+            UpdateCrew();
+            Assert.AreEqual(0, Crew().Count);
+            Assert.IsTrue(brain.IsSuspended, "el cerebro lo reanuda la expedición a la vuelta, no el driver");
+            Assert.AreEqual(0, Recovering().Count, "no salió por hambre ni cansancio");
+
+            Expedition(ant, false);
             UpdateCrew();
             Assert.AreEqual(1, Crew().Count);
         }
@@ -109,6 +165,27 @@ namespace Myrmutation.Tests
             Ant.All.Add(ant);
             return ant;
         }
+
+        // Como ExpeditionSystem: al salir, Suspend y SetActive(false) (sale de Ant.All); al volver, al revés y Resume.
+        private static void Expedition(Ant ant, bool leave)
+        {
+            var brain = ant.GetComponent<AntBrain>();
+            if (leave)
+            {
+                brain.Suspend();
+                ant.gameObject.SetActive(false);
+                Ant.All.Remove(ant);   // fuera de Play no hay OnDisable
+            }
+            else
+            {
+                ant.gameObject.SetActive(true);
+                Ant.All.Add(ant);
+                brain.Resume();
+            }
+        }
+
+        private System.Collections.IDictionary Recovering() =>
+            (System.Collections.IDictionary)typeof(DigTestDriver).GetField("recovering", Private).GetValue(driver);
 
         private void UpdateCrew() => typeof(DigTestDriver).GetMethod("UpdateCrew", Private).Invoke(driver, null);
 

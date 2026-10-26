@@ -124,6 +124,9 @@ namespace Myrmutation.Building
         /// <summary>Una casilla entra o sale del plano (para el dibujo del plano azul).</summary>
         public event Action<Vector2Int> PlannedChanged;
 
+        /// <summary>Una obrera ha vaciado esta casilla (Solid → Dug). Solo la excavación real: no el mapa inicial ni otros Set (terrones de DigChunks).</summary>
+        public event Action<Vector2Int> CellExcavated;
+
         /// <summary>Hay una edición abierta (entre BeginEdit y Commit o Revert).</summary>
         public bool Editing { get; private set; }
 
@@ -431,6 +434,10 @@ namespace Myrmutation.Building
         }
 
         /// <summary>Sala i (0 a RoomCount - 1): sus datos y su huella. Su estado sale de TryGetRoomState(rect.position).</summary>
+        /// <summary>Trabajos de bloque creados y sin quitar (para dibujarlos: DigCracks). Pueden estar sin empezar o ya terminados.</summary>
+        public int ActiveJobCount => active.Count;
+        public DigJob GetActiveJob(int i) => active[i].Dig;
+
         public void GetRoom(int i, out RoomData data, out RectInt rect)
         {
             data = rooms[i].Data;
@@ -758,7 +765,9 @@ namespace Myrmutation.Building
             while (job.Applied < target)
             {
                 Vector2Int c = job.Order[job.Applied++];
-                if (planned[Index(c)]) grid.Set(c, CellType.Dug);   // las borradas o canceladas se saltan
+                if (!planned[Index(c)]) continue;   // las borradas o canceladas se saltan
+                grid.Set(c, CellType.Dug);
+                CellExcavated?.Invoke(c);
             }
             if (changed && job.Room != null) TryFinishRoom(job.Room);
             // Solo al vaciar casillas: es cuando el bloque contiguo puede volverse trabajable (sin búsquedas cada frame).

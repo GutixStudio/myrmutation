@@ -270,7 +270,7 @@ namespace Myrmutation.Economy
 
             foreach (var ant in Ant.All)
             {
-                if (ant == null || !ant.IsAlive) continue;
+                if (ant == null || !ant.IsAlive || IsOnExpedition(ant)) continue;   // las que van o vuelven andando cuentan aparte
                 inNest++;
                 if (ant.IsQueen) { queens++; continue; }
                 if (ant.AssignedRoom == null) free++; else assigned++;
@@ -292,11 +292,23 @@ namespace Myrmutation.Economy
         private static IEnumerable<Ant> AllAnts()
         {
             foreach (var ant in Ant.All)
-                if (ant != null && ant.IsAlive) yield return ant;
+                if (ant != null && ant.IsAlive && !IsOnExpedition(ant)) yield return ant;
 
             if (ExpeditionSystem.Instance != null)
                 foreach (var ant in ExpeditionSystem.Instance.AntsAway)
                     if (ant != null && ant.IsAlive) yield return ant;
+        }
+
+        /// <summary>
+        /// Forma parte de la expedición en curso (D7: también mientras va o vuelve andando por el nido,
+        /// cuando está activa y aparece en Ant.All). Así no se cuenta dos veces.
+        /// </summary>
+        private static bool IsOnExpedition(Ant ant)
+        {
+            var exp = ExpeditionSystem.Instance;
+            if (exp == null) return false;
+            foreach (var a in exp.AntsAway) if (a == ant) return true;
+            return false;
         }
 
         // ---------- Utilidades ----------

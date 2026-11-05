@@ -131,7 +131,7 @@ namespace Myrmutation.Ants
             else if (energy >= 1f) exhausted = false;
 
             // Agotada: deja de trabajar en el acto, aunque el cerebro no lo haya visto aún.
-            if (exhausted && actuator != null && actuator.Current == AntAction.Working) actuator.Stop();
+            if (exhausted && actuator != null && (actuator.Current == AntAction.Working || actuator.Current == AntAction.Digging)) actuator.Stop();
 
             // Hambre
             hunger = Mathf.Clamp01(hunger + stats.hungerRate * hungerRateScale * dt);
@@ -195,7 +195,8 @@ namespace Myrmutation.Ants
             if (actuator == null) return workingEnergyFactor;
             switch (actuator.Current)
             {
-                case AntAction.Working: return workingEnergyFactor;
+                case AntAction.Working:
+                case AntAction.Digging: return workingEnergyFactor;   // excavar cansa como trabajar (B6)
                 case AntAction.Moving: return walkingEnergyFactor;   // TODO transporte: x (1 + carga / carryCapacity)
                 default: return idleEnergyFactor;                    // parada o comiendo
             }

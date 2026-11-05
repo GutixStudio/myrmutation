@@ -1,4 +1,5 @@
 using System;
+using Myrmutation.Building;
 using Myrmutation.Core;
 using UnityEngine;
 
@@ -8,10 +9,14 @@ namespace Myrmutation.Ants
     /// Cerebro de la hormiga (B2): máquina de estados jerárquica de dos niveles.
     /// Guía para el equipo (cómo integrarse con la IA): docs/IA_Hormigas.md
     ///
-    ///  NIVEL 1 · OBJETIVO (se elige por prioridad: Necesidad > Rutina)
+    ///  NIVEL 1 · OBJETIVO (se elige por prioridad: Necesidad > Excavar > Rutina)
     ///    1. Eat      · IsHungry y hay Despensa y comida  → ir a la Despensa y comer (ración doble si es Glotona)
     ///    2. Rest     · IsTired (o agotada)                → ir a su sala (o al túnel más cercano) y descansar
-    ///    3. Routine  · lo demás                            → ir a su sala asignada y trabajar
+    ///    3. Dig      · obrera sin sala y hay planos (B6)  → pedir un bloque (Digging.Current), ir a él y excavarlo
+    ///    4. Routine  · lo demás                            → ir a su sala asignada y trabajar (sin sala: esperar)
+    ///  Excavar solo lo hacen obreras vivas, sin sala y que no sean la reina. Las de expedición tienen el cerebro
+    ///  suspendido, así que nunca llegan a pedir. Al dejar Excavar por lo que sea (hambre, cansancio, le asignan sala,
+    ///  suspensión, muerte) suelta el bloque con DigJob.Release; el avance se conserva y luego vuelve a pedir.
     ///  Comer va por delante de descansar porque el hambre mata y el cansancio no.
     ///  Una necesidad no se abandona a medias: come hasta terminar y descansa hasta IsRested.
     ///  Al acabar una necesidad "vuelve": la Rutina la lleva otra vez a su sala.
@@ -34,6 +39,10 @@ namespace Myrmutation.Ants
         [Tooltip("Si algo falla (sin camino, no había comida), segundos antes de volver a intentarlo")]
         [SerializeField] private float retryDelay = 3f;
 
+        [Header("Excavar (B6)")]
+        [Tooltip("Fuerza si la hormiga no tiene casta (Stats.strength = 0)")]
+        [SerializeField] private float fallbackStrength = 1f;
+
         [Header("Debug")]
         [SerializeField] private bool logTransitions;
         [Tooltip("Muestra el estado encima de la hormiga en la vista Scene")]
@@ -49,6 +58,7 @@ namespace Myrmutation.Ants
         private float waitUntil;        // fin del paso Waiting
         private Room workRoom;          // sala hacia la que va / en la que trabaja
         private Room restRoom;          // sala en la que descansa (null = en el túnel)
+        private DigJob digJob;          // bloque reservado (va hacia él o lo excava); null = ninguno
 
         public BrainGoal Goal { get; private set; } = BrainGoal.Routine;
         public BrainStep Step { get; private set; } = BrainStep.None;
@@ -80,11 +90,14 @@ namespace Myrmutation.Ants
         {
             actuator.ActionFinished -= OnActionFinished;
             actuator.Ate -= OnAte;
+            ReleaseDigJob();
         }
 
         private void Update()
         {
-            if (IsSuspended || !ant.IsAlive) return;
+            if (!ant.IsAlive) { ReleaseDigJob(); return; }
+            if (IsSuspended) return;
+            if (Goal == BrainGoal.Dig) UpdateDig();
             thinkTimer -= Time.deltaTime;
             if (thinkTimer > 0f) return;
             thinkTimer = thinkInterval;
@@ -105,6 +118,7 @@ namespace Myrmutation.Ants
                 case BrainGoal.Routine: TickRoutine(); break;
                 case BrainGoal.Eat: TickEat(); break;
                 case BrainGoal.Rest: TickRest(); break;
+                case BrainGoal.Dig: TickDig(); break;
             }
         }
 
@@ -112,6 +126,8 @@ namespace Myrmutation.Ants
         {
             if (IsSuspended) return;
             if (needs.IsResting) needs.StopRest();
+            ReleaseDigJob();
+            if (actuator.Current == AntAction.Digging) actuator.Stop();   // que no se quede cabeceando
             IsSuspended = true;
             HasNoPath = false;
             SetStep(BrainStep.Waiting);
@@ -139,7 +155,17 @@ namespace Myrmutation.Ants
             // (Si comió a mitad de un agotamiento, sigue sin poder trabajar: vuelve a descansar.)
             if (sensor.IsTired || !sensor.CanWork) return BrainGoal.Rest;
 
+            if (WantsToDig()) return BrainGoal.Dig;
             return BrainGoal.Routine;
+        }
+
+        /// <summary>Obrera sin sala y hay planos que excavar (o ya tiene un bloque reservado).</summary>
+        private bool WantsToDig()
+        {
+            if (ant.IsQueen || ant.AssignedRoom != null) return false;
+            var dig = Digging.Current;
+            if (dig == null) return false;
+            return digJob != null || dig.HasWork;
         }
 
         private bool CanTryToEat()
@@ -154,6 +180,7 @@ namespace Myrmutation.Ants
         {
             // Salir del objetivo actual
             if (Goal == BrainGoal.Rest && needs.IsResting) needs.StopRest();
+            ReleaseDigJob();
             actuator.Stop();
             workRoom = null;
             restRoom = null;
@@ -243,6 +270,68 @@ namespace Myrmutation.Ants
             }
         }
 
+        // ---- Excavar (B6): pedir bloque → ir a StandPosition → excavar hasta IsDone ----
+        private void TickDig()
+        {
+            switch (Step)
+            {
+                case BrainStep.None:
+                    // Sin bloque: pide (hay que seguir pidiendo en cada ciclo hasta que el reparto le dé uno).
+                    if (digJob == null && !ClaimDigJob()) { HasNoPath = false; break; }
+                    GoTo(digJob.StandPosition);
+                    break;
+                case BrainStep.Moving:
+                    if (actuator.Current != AntAction.Moving) SetStep(BrainStep.None);   // alguien la paró
+                    break;
+                case BrainStep.Acting:
+                    if (actuator.Current != AntAction.Digging) SetStep(BrainStep.None);  // alguien la paró
+                    break;
+                case BrainStep.Waiting:
+                    if (Time.time >= waitUntil) SetStep(BrainStep.None);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Cada frame mientras excava: suma su fuerza al bloque y, si se ha terminado, cancelado o se lo ha quitado otra
+        /// más cercana (aún no lo excavaba), lo suelta y pide el siguiente en el mismo frame (excavación continua).
+        /// </summary>
+        private void UpdateDig()
+        {
+            // Le acaban de asignar sala: que lo decida ya, no en el siguiente ciclo.
+            if (ant.AssignedRoom != null) { thinkTimer = 0f; return; }
+            if (digJob == null) return;
+
+            if (digJob.IsDone || !digJob.HasWorker(ant))
+            {
+                ReleaseDigJob();
+                if (ClaimDigJob()) GoTo(digJob.StandPosition);
+                else { actuator.Stop(); SetStep(BrainStep.None); }
+                return;
+            }
+
+            if (Step == BrainStep.Acting && actuator.Current == AntAction.Digging)
+                digJob.Work(ant, Strength, Time.deltaTime);
+        }
+
+        private bool ClaimDigJob()
+        {
+            var dig = Digging.Current;
+            if (dig == null || !dig.TryClaim(ant, out var job)) return false;
+            digJob = job;
+            return true;
+        }
+
+        /// <summary>Suelta el bloque reservado (el avance se conserva). Llamarla de más es seguro.</summary>
+        private void ReleaseDigJob()
+        {
+            if (digJob == null) return;
+            digJob.Release(ant);
+            digJob = null;
+        }
+
+        private float Strength => ant.Stats.strength > 0f ? ant.Stats.strength : fallbackStrength;
+
         // ================= MOVIMIENTO Y LLEGADA =================
 
         private void GoTo(Vector3 destination)
@@ -254,6 +343,7 @@ namespace Myrmutation.Ants
             // Sin camino: esperar y reintentar.
             HasNoPath = true;
             if (Goal == BrainGoal.Eat) { GiveUpEating(); return; }
+            if (Goal == BrainGoal.Dig) ReleaseDigJob();   // que lo coja otra que sí llegue
             waitUntil = Time.time + retryDelay;
             SetStep(BrainStep.Waiting);
         }
@@ -273,6 +363,10 @@ namespace Myrmutation.Ants
                     actuator.Stop();                         // descansar solo cuenta quieta
                     needs.StartRest(restRoom);
                     break;
+                case BrainGoal.Dig:
+                    if (digJob == null) { SetStep(BrainStep.None); return; }
+                    actuator.Dig(digJob.FacingRight);        // mirando al bloque; el avance lo suma UpdateDig
+                    break;
             }
             SetStep(BrainStep.Acting);
         }
@@ -284,6 +378,15 @@ namespace Myrmutation.Ants
             if (action == AntAction.Moving && Step == BrainStep.Moving && sensor.IsAtTarget)
             {
                 Arrive();
+                return;
+            }
+
+            // La ruta acabó lejos del bloque: soltarlo y esperar, para no pedir y soltar el mismo en bucle.
+            if (action == AntAction.Moving && Step == BrainStep.Moving && Goal == BrainGoal.Dig)
+            {
+                ReleaseDigJob();
+                waitUntil = Time.time + retryDelay;
+                SetStep(BrainStep.Waiting);
                 return;
             }
 

@@ -6,13 +6,15 @@ using UnityEngine;
 
 namespace Myrmutation.Ants
 {
-    public enum AntAction { Idle, Moving, Working, Eating }
+    // Digging (B6) va al final para no mover los valores anteriores.
+    public enum AntAction { Idle, Moving, Working, Eating, Digging }
 
     /// <summary>
     /// Capa de ACTUACIÓN de la IA (GDD §11): ejecuta órdenes, no decide nada.
     /// El cerebro (AntBrain) decide qué hacer y llama a estos métodos; AntSensor le cuenta cómo está el mundo.
     ///
     /// Órdenes (tarjeta B1):  MoverA → MoveTo / MoveAlong · Parar → Stop · Trabajar → Work · Comer → Eat
+    ///                        Excavar → Dig (B6; el avance del bloque lo suma el cerebro con DigJob.Work)
     ///
     /// Usa Time.deltaTime, así que respeta la pausa y las velocidades x1/x2/x3 del GameManager.
     /// </summary>
@@ -36,6 +38,14 @@ namespace Myrmutation.Ants
         [SerializeField] private Transform visual;
         [SerializeField] private float bobAmplitude = 0.04f;
         [SerializeField] private float bobFrequency = 10f;
+
+        [Header("Excavar (animación)")]
+        [Tooltip("Cuánto sube el cuerpo en cada golpe al excavar (más que al trabajar)")]
+        [SerializeField] private float digBobAmplitude = 0.07f;
+        [Tooltip("Golpes por segundo (aprox.) al excavar")]
+        [SerializeField] private float digFrequency = 7f;
+        [Tooltip("Grados que cabecea arriba y abajo al excavar")]
+        [SerializeField] private float digNodAngle = 14f;
 
         [Header("Orientación")]
         [Tooltip("Gira el cuerpo para ir paralela al túnel (en cuestas y túneles verticales)")]
@@ -158,6 +168,20 @@ namespace Myrmutation.Ants
             Current = AntAction.Eating;
         }
 
+        /// <summary>
+        /// Excavar en el sitio: se queda quieta mirando al bloque y cabecea (más marcado que al trabajar) hasta nueva orden.
+        /// Solo es la animación y el estado (Current == Digging, que también gasta energía como trabajar): el avance del
+        /// bloque lo suma el cerebro llamando a DigJob.Work cada frame. No lanza ActionFinished.
+        /// </summary>
+        public void Dig(bool facingRight)
+        {
+            EndCurrentAction();
+            path.Clear();
+            SetFacing(facingRight);
+            targetAngle = 0f;
+            Current = AntAction.Digging;
+        }
+
         // ================= BUCLE =================
 
         private void Update()
@@ -167,6 +191,7 @@ namespace Myrmutation.Ants
                 case AntAction.Moving: UpdateMove(); break;
                 case AntAction.Working: UpdateWork(); break;
                 case AntAction.Eating: UpdateEat(); break;
+                case AntAction.Digging: UpdateDig(); break;
             }
             UpdateRotation();
         }
@@ -214,6 +239,18 @@ namespace Myrmutation.Ants
             Ate?.Invoke(eaten);
         }
 
+        /// <summary>Cabeceo de excavar: levanta la cabeza y la baja de golpe, con un pequeño salto del cuerpo.</summary>
+        private void UpdateDig()
+        {
+            if (visual == null) return;
+            bobTime += Time.deltaTime * digFrequency * 2f * Mathf.PI;
+            float s = Mathf.Sin(bobTime);                       // +1 cabeza arriba · -1 cabeza abajo (golpe)
+            visual.localPosition = visualBasePos + Vector3.up * (Mathf.Max(0f, s) * digBobAmplitude);
+            // Volteada (mirando a la izquierda) el mismo giro levantaría la cola: se invierte.
+            float angle = s * digNodAngle * (FacingRight ? 1f : -1f);
+            visual.localRotation = Quaternion.Euler(0f, 0f, angle);
+        }
+
         // ================= AUXILIARES =================
 
         private void Finish(AntAction finished)
@@ -230,7 +267,12 @@ namespace Myrmutation.Ants
             pendingRation = 0;
             actionTimer = 0f;
             bobTime = 0f;
-            if (visual != null) visual.localPosition = visualBasePos;
+            if (visual != null)
+            {
+                visual.localPosition = visualBasePos;
+                // El cabeceo de excavar gira el Visual: se endereza al dejarlo.
+                if (Current == AntAction.Digging) visual.localRotation = Quaternion.identity;
+            }
         }
 
         /// <summary>
@@ -242,22 +284,7 @@ namespace Myrmutation.Ants
         {
             if (dir.sqrMagnitude < 0.000001f) return;
 
-            if (Mathf.Abs(dir.x) > 0.001f)
-            {
-                bool right = dir.x > 0f;
-                if (right != FacingRight)
-                {
-                    FacingRight = right;
-                    if (visual != null)
-                    {
-                        var s = visual.localScale;
-                        s.x = Mathf.Abs(s.x) * (right ? 1f : -1f);
-                        visual.localScale = s;
-                        // Al voltear, el mismo giro apuntaría al revés: se refleja para que no dé un salto.
-                        visual.localRotation = Quaternion.Euler(0f, 0f, -visual.localEulerAngles.z);
-                    }
-                }
-            }
+            if (Mathf.Abs(dir.x) > 0.001f) SetFacing(dir.x > 0f);
 
             if (!alignToPath) { targetAngle = 0f; return; }
             float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;   // 0 = derecha, 90 = arriba
@@ -265,10 +292,23 @@ namespace Myrmutation.Ants
             targetAngle = Mathf.DeltaAngle(0f, FacingRight ? angle : angle - 180f);
         }
 
+        /// <summary>Voltea a la hormiga para que mire a la derecha (true) o a la izquierda (false).</summary>
+        private void SetFacing(bool right)
+        {
+            if (right == FacingRight) return;
+            FacingRight = right;
+            if (visual == null) return;
+            var s = visual.localScale;
+            s.x = Mathf.Abs(s.x) * (right ? 1f : -1f);
+            visual.localScale = s;
+            // Al voltear, el mismo giro apuntaría al revés: se refleja para que no dé un salto.
+            visual.localRotation = Quaternion.Euler(0f, 0f, -visual.localEulerAngles.z);
+        }
+
         /// <summary>Gira el Visual poco a poco hacia targetAngle (horizontal si está parada).</summary>
         private void UpdateRotation()
         {
-            if (visual == null) return;
+            if (visual == null || Current == AntAction.Digging) return;   // al excavar el giro lo lleva UpdateDig
             if (Current != AntAction.Moving && levelWhenStopped) targetAngle = 0f;
 
             float z = visual.localEulerAngles.z;

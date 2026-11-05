@@ -4,9 +4,11 @@ namespace Myrmutation.Ants
 {
     /// <summary>
     /// Qué persigue la hormiga ahora mismo (nivel alto de la máquina de estados).
-    /// Dig (B6): obrera sin sala excavando los planos de construcción. Va al final para no mover los valores anteriores.
+    /// Dig (B6): obrera sin sala excavando los planos de construcción.
+    /// Idle (B8): obrera sin sala y sin planos: espera paseando por la Sala Real (o junto a la entrada).
+    /// Los nuevos van al final para no mover los valores anteriores.
     /// </summary>
-    public enum BrainGoal { Routine, Eat, Rest, Dig }
+    public enum BrainGoal { Routine, Eat, Rest, Dig, Idle }
 
     /// <summary>En qué punto de ese objetivo está (nivel bajo).</summary>
     public enum BrainStep { None, Moving, Acting, Waiting }

@@ -86,6 +86,7 @@ namespace Myrmutation.Ants
         private Vector3 visualBasePos;
         private float bobTime;
         private float targetAngle;      // giro (grados) que busca el Visual
+        private float moveSpeedScale = 1f;   // multiplicador de Speed del trayecto actual (B8)
 
         private void Awake()
         {
@@ -96,7 +97,13 @@ namespace Myrmutation.Ants
         // ================= ÓRDENES =================
 
         /// <summary>MoverA(destino): calcula la ruta por los túneles y va hasta allí. False si no hay camino.</summary>
-        public bool MoveTo(Vector3 destination)
+        public bool MoveTo(Vector3 destination) => MoveTo(destination, 1f);
+
+        /// <summary>
+        /// MoverA(destino) a otra velocidad: speedScale multiplica Speed solo durante este trayecto
+        /// (B8: paseos de las obreras ociosas a media velocidad). Cualquier otra orden vuelve a ×1.
+        /// </summary>
+        public bool MoveTo(Vector3 destination, float speedScale)
         {
             var route = new List<Vector3>();
             if (Navigation.Current != null)
@@ -112,15 +119,19 @@ namespace Myrmutation.Ants
                 // Sin navegador en la escena (p. ej. una prueba sin túneles): línea recta.
                 route.Add(destination);
             }
-            return MoveAlong(route);
+            return MoveAlong(route, speedScale);
         }
 
         /// <summary>MoverA(ruta): recorre los puntos en orden. El último es el destino.</summary>
-        public bool MoveAlong(IList<Vector3> route)
+        public bool MoveAlong(IList<Vector3> route) => MoveAlong(route, 1f);
+
+        /// <summary>MoverA(ruta) a otra velocidad (ver MoveTo).</summary>
+        public bool MoveAlong(IList<Vector3> route, float speedScale)
         {
             if (route == null || route.Count == 0) return false;
 
             EndCurrentAction();
+            moveSpeedScale = speedScale > 0f ? speedScale : 1f;
             path.Clear();
             float z = transform.position.z;
             foreach (var p in route) path.Add(new Vector3(p.x, p.y, z));
@@ -202,7 +213,7 @@ namespace Myrmutation.Ants
             Vector3 pos = transform.position;
             Face(target - pos);
 
-            transform.position = Vector3.MoveTowards(pos, target, Speed * Time.deltaTime);
+            transform.position = Vector3.MoveTowards(pos, target, Speed * moveSpeedScale * Time.deltaTime);
 
             if ((transform.position - target).sqrMagnitude > arriveDistance * arriveDistance) return;
 

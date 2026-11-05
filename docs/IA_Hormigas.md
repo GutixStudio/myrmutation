@@ -1,7 +1,7 @@
 # IA de las hormigas · Guía para el equipo
 
 **Responsable:** B · **Código:** `Assets/_Project/Scripts/Ants/` · **Escena de pruebas:** `Scenes/Test/B.unity`  
-**Última actualización:** 05/11/2026 · B6: las obreras sin sala excavan los planos solas
+**Última actualización:** 05/11/2026 · B8: obreras ociosas en la Sala Real y reparto por el suelo de las salas
 
 Este documento explica cómo funciona la IA de las hormigas y **qué tenéis que tener en cuenta si vuestro sistema interactúa con ellas**. Si algo no encaja con lo que necesitáis, hablad con B antes de tocar estos scripts.
 
@@ -19,7 +19,7 @@ El prefab `Prefabs/AntsP/Ant.prefab` lleva estos componentes. Cada uno hace una 
 | `AntActuator` | Actuación | Ejecuta órdenes: moverse, parar, trabajar, comer, excavar |
 | `AntNeeds` | Necesidades | Los números de hambre y energía |
 | `AntGenome` (C) | Genética | Recalcula `Ant.Stats` con los genes. Ya va en el prefab (las crías de la Guardería también lo llevan) |
-| `AntSpread` (A5) | Visual | Desplaza un poco el dibujo (hijo `Visual`) de cada hormiga y le da su propio orden de dibujado, para que las que están en la misma sala no se vean como una sola. No toca la posición real ni la IA |
+| `AntSpread` (A5 + B8) | Visual y reparto | Desplaza un poco el dibujo (hijo `Visual`) de cada hormiga y le da su propio orden de dibujado. **B8:** además elige el sitio del suelo de cada sala al que va la hormiga (ver §2) |
 
 **Regla:** el cerebro decide, el actuador ejecuta y el sensor informa. Si vuestro sistema necesita que una hormiga haga algo, no le deis órdenes al actuador con el cerebro activo: el cerebro las pisará en menos de medio segundo. Ver §4.
 
@@ -27,16 +27,19 @@ El prefab `Prefabs/AntsP/Ant.prefab` lleva estos componentes. Cada uno hace una 
 
 ## 2. Qué decide el cerebro (`AntBrain`)
 
-Por orden de prioridad (**Necesidad > Excavar > Rutina**):
+Por orden de prioridad (**Necesidad > Excavar > Rutina > Ociosa**):
 
 1. **Comer:** si tiene hambre (≥ 0,6), hay Despensa construida y hay comida, va a la Despensa, come y vuelve. Con la tara *Glotona* gasta 2 raciones.
 2. **Descansar:** si está cansada (≤ 0,25), descansa en su sala asignada o, si no tiene, en el túnel más cercano, hasta llegar a 0,95. Si llegó a 0 (agotada), descansa hasta 1.
 3. **Excavar (B6):** si **no tiene sala**, no es la reina y hay planos (`Digging.Current.HasWork`), pide un bloque con `TryClaim`, va a su `StandPosition`, se pone mirando al bloque (`AntAction.Digging`) y llama a `DigJob.Work(ant, fuerza, dt)` cada frame hasta `IsDone`. Al terminar pide el siguiente en el mismo frame (excavación continua). Si el hambre, el cansancio, una sala asignada, una suspensión (expedición) o la muerte la interrumpen, hace `Release()` (el avance se conserva) y, cuando vuelva a estar libre, pide otra vez.
-4. **Rutina:** va a su `Ant.AssignedRoom` y trabaja ahí hasta nueva orden. Sin sala asignada (y sin nada que excavar), espera quieta.
+4. **Rutina:** va a su `Ant.AssignedRoom` y trabaja ahí hasta nueva orden.
+5. **Ociosa (B8):** sin sala asignada y sin nada que excavar (`BrainGoal.Idle`), va a la **Sala Real** y da paseos cortos por su suelo (como mucho 1,5 u, a media velocidad, con paradas de 5–10 s), sin acercarse a las puertas ni al centro, donde está la reina. Si no hay Sala Real o no se puede llegar, espera junto a la entrada, en la superficie.
 
 - Comer va antes que descansar porque el hambre mata y el cansancio no.
 - Si algo falla (no hay camino, no hay comida), espera 3 s y lo vuelve a intentar.
 - **La reina** no trabaja ni se mueve: come y descansa en su sitio.
+- **Reparto en las salas (B8):** para trabajar, comer o descansar en una sala ya no va a su `WorkPosition` (el centro del suelo), sino al sitio que le da `AntSpread.SpotIn(sala)`: el más separado de las demás hormigas que están en ese suelo o van hacia él, dejando 1 u libre en cada puerta. No hay plazas: caben todas, más juntas cuantas más haya. **Si vuestro sistema necesita saber si una hormiga está en una sala, no comparéis su posición con `WorkPosition`**: usad `AntActuator.WorkRoom` (ver §4).
+- **Puertas libres (B8):** si una hormiga se queda parada en una puerta o en su zona de acceso (esperando, buscando bloque…), el cerebro la aparta hacia dentro de esa sala. Si el túnel más cercano para descansar es una puerta, descansa dentro de la sala.
 
 ## 3. Necesidades (`AntNeeds`)
 
@@ -138,6 +141,5 @@ void OnDisable() => AntPanelAction.Unregister("Devorar");
 
 - **Transporte (carga):** al andar cargada, una hormiga debe gastar más energía según el peso. Está marcado con `TODO (TRANSPORTE)` en `AntNeeds.EnergyDrainFactor()`, con la fórmula propuesta. Quien haga el transporte debe exponer la carga actual y hablarlo con B.
 - **Dormitorio (beta):** descansar ahí será ×2. Falta un `RoomType` nuevo en `Core/Enums.cs` (A1). El hueco está preparado en `AntNeeds.RestMultiplier()`.
-- **Constructoras sin sala:** al terminar una obra quedan libres y esperan quietas. Propuesta: que se queden asignadas a la sala que han construido (hasta su capacidad).
 - **Invierno:** usar o no `SeasonRules.HungerMultiplier` en `AntNeeds` (ver §4).
 - **Balance:** el hambre va a la mitad mediante `AntNeeds` (*Hunger Rate Scale* = 0,5). Si D ajusta `hungerRate` directamente en las castas, hay que volver a poner ese valor a 1.

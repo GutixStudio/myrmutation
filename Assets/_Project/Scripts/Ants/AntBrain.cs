@@ -9,11 +9,12 @@ namespace Myrmutation.Ants
     /// Cerebro de la hormiga (B2): máquina de estados jerárquica de dos niveles.
     /// Guía para el equipo (cómo integrarse con la IA): docs/IA_Hormigas.md
     ///
-    ///  NIVEL 1 · OBJETIVO (se elige por prioridad: Necesidad > Excavar > Rutina)
+    ///  NIVEL 1 · OBJETIVO (se elige por prioridad: Necesidad > Excavar > Rutina > Ociosa)
     ///    1. Eat      · IsHungry y hay Despensa y comida  → ir a la Despensa y comer (ración doble si es Glotona)
     ///    2. Rest     · IsTired (o agotada)                → ir a su sala (o al túnel más cercano) y descansar
     ///    3. Dig      · obrera sin sala y hay planos (B6)  → pedir un bloque (Digging.Current), ir a él y excavarlo
-    ///    4. Routine  · lo demás                            → ir a su sala asignada y trabajar (sin sala: esperar)
+    ///    4. Routine  · tiene sala (o es la reina)          → ir a su sala asignada y trabajar (la reina espera)
+    ///    5. Idle     · obrera sin sala ni planos (B8)      → ir a la Sala Real (o junto a la entrada) y dar paseos cortos
     ///  Excavar solo lo hacen obreras vivas, sin sala y que no sean la reina. Las de expedición tienen el cerebro
     ///  suspendido, así que nunca llegan a pedir. Al dejar Excavar por lo que sea (hambre, cansancio, le asignan sala,
     ///  suspensión, muerte) suelta el bloque con DigJob.Release; el avance se conserva y luego vuelve a pedir.
@@ -22,8 +23,12 @@ namespace Myrmutation.Ants
     ///  Al acabar una necesidad "vuelve": la Rutina la lleva otra vez a su sala.
     ///
     ///  NIVEL 2 · PASO dentro del objetivo
-    ///    None → Moving (camino a su sitio) → Acting (trabajando / comiendo / descansando)
-    ///    Waiting = no puede hacer nada ahora (sin sala, sin camino…): reintenta más tarde.
+    ///    None → Moving (camino a su sitio) → Acting (trabajando / comiendo / descansando / parada entre paseos)
+    ///    Waiting = no puede hacer nada ahora (sin camino…): reintenta más tarde.
+    ///
+    ///  REPARTO EN LAS SALAS (B8): para trabajar, comer y descansar en una sala no va a su WorkPosition (el centro),
+    ///  sino a un sitio de su suelo que le da AntSpread.SpotIn: el más separado de las demás, lejos de las puertas.
+    ///  Si se queda parada en una puerta (o en su zona de acceso), se aparta hacia dentro de esa sala.
     ///
     /// Solo da órdenes al AntActuator y a AntNeeds (StartRest/StopRest); lo que sabe lo lee de AntSensor.
     /// Decide cada 'thinkInterval' segundos, no en cada frame (GDD: 15-40 hormigas).
@@ -43,6 +48,16 @@ namespace Myrmutation.Ants
         [Tooltip("Fuerza si la hormiga no tiene casta (Stats.strength = 0)")]
         [SerializeField] private float fallbackStrength = 1f;
 
+        [Header("Ociosa (B8)")]
+        [Tooltip("Segundos mínimos parada entre un paseo y el siguiente")]
+        [SerializeField] private float idlePauseMin = 5f;
+        [Tooltip("Segundos máximos parada entre un paseo y el siguiente")]
+        [SerializeField] private float idlePauseMax = 10f;
+        [Tooltip("Distancia máxima (u) de cada paseo")]
+        [SerializeField] private float strollRange = 1.5f;
+        [Tooltip("Velocidad de los paseos (× la de su casta)")]
+        [SerializeField] private float strollSpeed = 0.5f;
+
         [Header("Debug")]
         [SerializeField] private bool logTransitions;
         [Tooltip("Muestra el estado encima de la hormiga en la vista Scene")]
@@ -52,10 +67,13 @@ namespace Myrmutation.Ants
         private AntActuator actuator;
         private AntSensor sensor;
         private AntNeeds needs;
+        private AntSpread spread;       // reparto en las salas (B8); sin él, va a la WorkPosition como antes
 
         private float thinkTimer;
         private float eatRetryAt;       // no intenta comer antes de este momento
         private float waitUntil;        // fin del paso Waiting
+        private float idleUntil;        // fin de la parada entre paseos (Idle/Acting)
+        private float stepAsideRetryAt; // no intenta apartarse de una puerta antes de este momento
         private Room workRoom;          // sala hacia la que va / en la que trabaja
         private Room restRoom;          // sala en la que descansa (null = en el túnel)
         private DigJob digJob;          // bloque reservado (va hacia él o lo excava); null = ninguno
@@ -76,6 +94,7 @@ namespace Myrmutation.Ants
             actuator = GetComponent<AntActuator>();
             sensor = GetComponent<AntSensor>();
             needs = GetComponent<AntNeeds>();
+            spread = GetComponent<AntSpread>();
             // Escalonado: que no piensen todas en el mismo frame.
             thinkTimer = UnityEngine.Random.Range(0f, thinkInterval);
         }
@@ -119,7 +138,10 @@ namespace Myrmutation.Ants
                 case BrainGoal.Eat: TickEat(); break;
                 case BrainGoal.Rest: TickRest(); break;
                 case BrainGoal.Dig: TickDig(); break;
+                case BrainGoal.Idle: TickIdle(); break;
             }
+
+            StepAsideFromDoor();
         }
 
         public void Suspend()
@@ -156,6 +178,8 @@ namespace Myrmutation.Ants
             if (sensor.IsTired || !sensor.CanWork) return BrainGoal.Rest;
 
             if (WantsToDig()) return BrainGoal.Dig;
+            // Obrera sin sala y sin planos: ociosa (B8). La reina sigue en Rutina (espera en su sitio).
+            if (!ant.IsQueen && ant.AssignedRoom == null) return BrainGoal.Idle;
             return BrainGoal.Routine;
         }
 
@@ -197,7 +221,7 @@ namespace Myrmutation.Ants
         {
             var assigned = ant.IsQueen ? null : ant.AssignedRoom;
 
-            // Sin sala (o es la reina): espera quieta.
+            // Sin sala (la reina) o sin poder trabajar: espera quieta.
             if (assigned == null || !needs.CanWork)
             {
                 HasNoPath = false;   // no va a ningún sitio: no hay camino que buscar
@@ -214,7 +238,7 @@ namespace Myrmutation.Ants
                     if (Time.time >= waitUntil) SetStep(BrainStep.None);
                     break;
                 case BrainStep.None:
-                    GoTo(workRoom.WorkPosition);
+                    GoTo(SpotIn(workRoom));
                     break;
                 case BrainStep.Moving:
                     if (actuator.Current != AntAction.Moving) SetStep(BrainStep.None);   // alguien la paró
@@ -234,7 +258,7 @@ namespace Myrmutation.Ants
                     if (ant.IsQueen) { Arrive(); break; }   // a la reina le llevan la comida
                     var storage = sensor.NearestRoom(RoomType.Storage);
                     if (storage == null) { GiveUpEating(); break; }
-                    GoTo(storage.WorkPosition);
+                    GoTo(SpotIn(storage));
                     break;
                 case BrainStep.Moving:
                     if (actuator.Current != AntAction.Moving) SetStep(BrainStep.None);
@@ -256,7 +280,14 @@ namespace Myrmutation.Ants
                 case BrainStep.None:
                     if (ant.IsQueen) { restRoom = null; Arrive(); break; }
                     restRoom = ant.AssignedRoom;
-                    GoTo(restRoom != null ? restRoom.WorkPosition : sensor.NearestTunnelPoint());
+                    Vector3 target = restRoom != null ? SpotIn(restRoom) : sensor.NearestTunnelPoint();
+                    // B8: el túnel más cercano puede ser una puerta: entonces descansa dentro de esa sala.
+                    if (restRoom == null && spread != null && spread.IsInDoorway(target, out var doorRoom))
+                    {
+                        restRoom = doorRoom;
+                        target = SpotIn(doorRoom);
+                    }
+                    GoTo(target);
                     break;
                 case BrainStep.Moving:
                     if (actuator.Current != AntAction.Moving) SetStep(BrainStep.None);
@@ -332,18 +363,61 @@ namespace Myrmutation.Ants
 
         private float Strength => ant.Stats.strength > 0f ? ant.Stats.strength : fallbackStrength;
 
+        // ---- Ociosa (B8): sin sala ni planos → a la Sala Real (o la entrada) y paseos cortos ----
+        private void TickIdle()
+        {
+            switch (Step)
+            {
+                case BrainStep.None:
+                    var royal = sensor.NearestRoom(RoomType.Royal);
+                    if (royal != null)
+                    {
+                        // Primero entra en la sala; ya dentro, pasea por su suelo despacio.
+                        if (spread == null || !spread.IsInside(royal, transform.position)) GoTo(SpotIn(royal));
+                        else GoTo(spread.StrollSpotIn(royal, strollRange), strollSpeed);
+                        break;
+                    }
+                    // Sin Sala Real (o sin camino hasta ella): junto a la entrada, en la superficie.
+                    var entrance = NestEntrance.Instance;
+                    if (entrance == null) { Wait(); break; }
+                    Vector3 crater = entrance.Position;
+                    bool near = Mathf.Abs(transform.position.x - crater.x) <= strollRange &&
+                                Mathf.Abs(transform.position.y - crater.y) <= 0.5f;
+                    if (!near) GoTo(crater);
+                    else GoTo(crater + Vector3.right * UnityEngine.Random.Range(-strollRange, strollRange), strollSpeed);
+                    break;
+                case BrainStep.Moving:
+                    if (actuator.Current != AntAction.Moving) SetStep(BrainStep.None);   // alguien la paró
+                    break;
+                case BrainStep.Acting:
+                    if (Time.time >= idleUntil) SetStep(BrainStep.None);                 // otro paseo
+                    break;
+                case BrainStep.Waiting:
+                    if (Time.time >= waitUntil) SetStep(BrainStep.None);
+                    break;
+            }
+        }
+
         // ================= MOVIMIENTO Y LLEGADA =================
 
-        private void GoTo(Vector3 destination)
+        /// <summary>Sitio repartido en el suelo de la sala (B8); sin AntSpread, su WorkPosition.</summary>
+        private Vector3 SpotIn(Room room) => spread != null ? spread.SpotIn(room) : room.WorkPosition;
+
+        private void GoTo(Vector3 destination, float speedScale = 1f)
         {
             if (sensor.IsAt(destination)) { HasNoPath = false; Arrive(); return; }
 
-            if (actuator.MoveTo(destination)) { HasNoPath = false; SetStep(BrainStep.Moving); return; }
+            if (actuator.MoveTo(destination, speedScale)) { HasNoPath = false; SetStep(BrainStep.Moving); return; }
 
             // Sin camino: esperar y reintentar.
             HasNoPath = true;
             if (Goal == BrainGoal.Eat) { GiveUpEating(); return; }
             if (Goal == BrainGoal.Dig) ReleaseDigJob();   // que lo coja otra que sí llegue
+            Wait();
+        }
+
+        private void Wait()
+        {
             waitUntil = Time.time + retryDelay;
             SetStep(BrainStep.Waiting);
         }
@@ -367,8 +441,25 @@ namespace Myrmutation.Ants
                     if (digJob == null) { SetStep(BrainStep.None); return; }
                     actuator.Dig(digJob.FacingRight);        // mirando al bloque; el avance lo suma UpdateDig
                     break;
+                case BrainGoal.Idle:
+                    actuator.Stop();                         // parada un rato antes del siguiente paseo
+                    idleUntil = Time.time + UnityEngine.Random.Range(idlePauseMin, idlePauseMax);
+                    break;
             }
             SetStep(BrainStep.Acting);
+        }
+
+        /// <summary>
+        /// B8: si está parada (sin acción) en una puerta o en su zona de acceso, se aparta hacia dentro de esa sala.
+        /// No toca el paso del objetivo: en cuanto este le dé otra orden, la sigue. No mueve a la reina ni a las que
+        /// descansan (su sitio ya lo eligió TickRest). Sin camino, espera retryDelay antes de volver a intentarlo.
+        /// </summary>
+        private void StepAsideFromDoor()
+        {
+            if (spread == null || ant.IsQueen || !actuator.IsIdle || needs.IsResting) return;
+            if (Time.time < stepAsideRetryAt) return;
+            if (!spread.IsInDoorway(transform.position, out var room)) return;
+            if (!actuator.MoveTo(spread.SpotIn(room))) stepAsideRetryAt = Time.time + retryDelay;
         }
 
         private void OnActionFinished(AntAction action)
@@ -385,8 +476,7 @@ namespace Myrmutation.Ants
             if (action == AntAction.Moving && Step == BrainStep.Moving && Goal == BrainGoal.Dig)
             {
                 ReleaseDigJob();
-                waitUntil = Time.time + retryDelay;
-                SetStep(BrainStep.Waiting);
+                Wait();
                 return;
             }
 

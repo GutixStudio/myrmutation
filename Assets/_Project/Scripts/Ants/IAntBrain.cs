@@ -2,8 +2,11 @@ using System;
 
 namespace Myrmutation.Ants
 {
-    /// <summary>Qué persigue la hormiga ahora mismo (nivel alto de la máquina de estados).</summary>
-    public enum BrainGoal { Routine, Eat, Rest }
+    /// <summary>
+    /// Qué persigue la hormiga ahora mismo (nivel alto de la máquina de estados).
+    /// Dig (B6): obrera sin sala excavando los planos de construcción. Va al final para no mover los valores anteriores.
+    /// </summary>
+    public enum BrainGoal { Routine, Eat, Rest, Dig }
 
     /// <summary>En qué punto de ese objetivo está (nivel bajo).</summary>
     public enum BrainStep { None, Moving, Acting, Waiting }

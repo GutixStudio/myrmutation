@@ -1,7 +1,7 @@
 # IA de las hormigas · Guía para el equipo
 
 **Responsable:** B · **Código:** `Assets/_Project/Scripts/Ants/` · **Escena de pruebas:** `Scenes/Test/B.unity`  
-**Última actualización:** 11/10/2026 · integración en `Game.unity` (A5) para la alfa v0.1-alpha
+**Última actualización:** 05/11/2026 · B6: las obreras sin sala excavan los planos solas
 
 Este documento explica cómo funciona la IA de las hormigas y **qué tenéis que tener en cuenta si vuestro sistema interactúa con ellas**. Si algo no encaja con lo que necesitáis, hablad con B antes de tocar estos scripts.
 
@@ -16,7 +16,7 @@ El prefab `Prefabs/AntsP/Ant.prefab` lleva estos componentes. Cada uno hace una 
 | `Ant` (A1, Core) | Datos | Nombre, casta, genes, stats, sala asignada (`AssignedRoom`) |
 | `AntSensor` | Percepción | Responde preguntas: ¿tiene hambre?, ¿está cansada?, ¿ha llegado?, ¿cuál es la Despensa más cercana? |
 | `AntBrain` | Decisión | Decide qué hacer cada 0,3 s (máquina de estados) |
-| `AntActuator` | Actuación | Ejecuta órdenes: moverse, parar, trabajar, comer |
+| `AntActuator` | Actuación | Ejecuta órdenes: moverse, parar, trabajar, comer, excavar |
 | `AntNeeds` | Necesidades | Los números de hambre y energía |
 | `AntGenome` (C) | Genética | Recalcula `Ant.Stats` con los genes. Ya va en el prefab (las crías de la Guardería también lo llevan) |
 | `AntSpread` (A5) | Visual | Desplaza un poco el dibujo (hijo `Visual`) de cada hormiga y le da su propio orden de dibujado, para que las que están en la misma sala no se vean como una sola. No toca la posición real ni la IA |
@@ -27,11 +27,12 @@ El prefab `Prefabs/AntsP/Ant.prefab` lleva estos componentes. Cada uno hace una 
 
 ## 2. Qué decide el cerebro (`AntBrain`)
 
-Por orden de prioridad (**Necesidad > Rutina**):
+Por orden de prioridad (**Necesidad > Excavar > Rutina**):
 
 1. **Comer:** si tiene hambre (≥ 0,6), hay Despensa construida y hay comida, va a la Despensa, come y vuelve. Con la tara *Glotona* gasta 2 raciones.
 2. **Descansar:** si está cansada (≤ 0,25), descansa en su sala asignada o, si no tiene, en el túnel más cercano, hasta llegar a 0,95. Si llegó a 0 (agotada), descansa hasta 1.
-3. **Rutina:** va a su `Ant.AssignedRoom` y trabaja ahí hasta nueva orden. Sin sala asignada, espera quieta.
+3. **Excavar (B6):** si **no tiene sala**, no es la reina y hay planos (`Digging.Current.HasWork`), pide un bloque con `TryClaim`, va a su `StandPosition`, se pone mirando al bloque (`AntAction.Digging`) y llama a `DigJob.Work(ant, fuerza, dt)` cada frame hasta `IsDone`. Al terminar pide el siguiente en el mismo frame (excavación continua). Si el hambre, el cansancio, una sala asignada, una suspensión (expedición) o la muerte la interrumpen, hace `Release()` (el avance se conserva) y, cuando vuelva a estar libre, pide otra vez.
+4. **Rutina:** va a su `Ant.AssignedRoom` y trabaja ahí hasta nueva orden. Sin sala asignada (y sin nada que excavar), espera quieta.
 
 - Comer va antes que descansar porque el hambre mata y el cansancio no.
 - Si algo falla (no hay camino, no hay comida), espera 3 s y lo vuelve a intentar.
@@ -42,7 +43,7 @@ Por orden de prioridad (**Necesidad > Rutina**):
 | | Valor | Notas |
 |---|---|---|
 | Hambre | 0 → 1 | Sube a `Stats.hungerRate × 0,5`. Con 10 s al máximo, `Ant.Kill(Starvation)` |
-| Energía | 1 → 0 | Baja a `Stats.energyRate ×` factor de actividad: trabajando ×1, andando o parada ×0,3 |
+| Energía | 1 → 0 | Baja a `Stats.energyRate ×` factor de actividad: trabajando o excavando ×1, andando o parada ×0,3 |
 | Descanso | +0,1/s | 10 s de 0 a 1 |
 | Agotada | energía 0 | No trabaja (`CanWork = false`) hasta recuperar el 100 % |
 
@@ -58,6 +59,11 @@ Estar asignada a una sala (`AssignedRoom`) **no** significa estar en ella: puede
 var act = ant.GetComponent<AntActuator>();
 bool trabajandoAqui = act != null && act.Current == AntAction.Working && act.WorkRoom == sala;
 ```
+
+Para saber si está **excavando**: `act.Current == AntAction.Digging` (en el panel sale "Excavando"; en la burbuja de B7, el icono de excavar).
+
+### A · Excavación (`DigPlanner`) · *B6*
+El cerebro ya hace de cuadrilla: **quitad `DigTestDriver` de `Game.unity`** (o desactivadlo). Si se queda con *Use Crew*, suspende el cerebro a obreras libres y las dos cosas se pisan. En las escenas de prueba de A con el `AntBrain` apagado (*Use Crew* desactivado) puede seguir.
 
 ### D · Producción (`ColonyProduction`)
 *Only Count Working Ants* está **activado** en `Game.unity`: solo producen las hormigas que están en la sala trabajando, no las que han ido a comer.

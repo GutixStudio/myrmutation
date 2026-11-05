@@ -245,6 +245,10 @@ namespace Myrmutation.Ants
                 case BrainGoal.Rest:
                     if (needs != null && needs.IsExhausted && brain.Step == BrainStep.Acting) return "Agotada: descansando";
                     return brain.Step == BrainStep.Acting ? "Descansando" : "Yendo a descansar";
+                case BrainGoal.Dig:
+                    if (brain.Step == BrainStep.Acting) return "Excavando";
+                    if (brain.Step == BrainStep.Moving) return "Yendo a excavar";
+                    return "Buscando dónde excavar";
                 default:
                     if (ant.AssignedRoom == null) return "Sin sala asignada";
                     if (brain.Step == BrainStep.Acting) return ant.AssignedRoom.IsBuilt ? $"Trabajando en {room}" : $"Construyendo {room}";

@@ -208,20 +208,25 @@ namespace Myrmutation.Genetics
             return true;
         }
 
-        
-        public bool DevourPrey(Ant eater, GeneData preyGene)
+
+        public bool DevourPrey(Ant eater, GeneData preyGene) => DevourPrey(eater, preyGene, out _, out _);
+
+        /// <summary>Igual, pero dice qué pasó (el menú del Festín, C9, lo usa para avisar al jugador).</summary>
+        public bool DevourPrey(Ant eater, GeneData preyGene, out FeastOutcome outcome, out GeneData gained)
         {
+            outcome = FeastOutcome.Nothing;
+            gained = null;
             if (eater == null || !eater.IsAlive || eater.IsQueen || !FeastAvailable) return false;
 
             var source = preyGene != null ? new List<GeneData> { preyGene } : new List<GeneData>();
-            var outcome = Mutate(eater, RollDice(prey_Gene, prey_Flaw), source, out var gained);
+            outcome = Mutate(eater, RollDice(prey_Gene, prey_Flaw), source, out gained);
 
             GiveBiomass(preyBiomass);
             Report(new FeastResult(eater, null, outcome, gained, preyBiomass), 0);
             return true;
         }
 
-       
+
 
         private static Roll RollDice(float geneChance, float flawChance)
         {

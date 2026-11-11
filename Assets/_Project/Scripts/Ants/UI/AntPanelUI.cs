@@ -227,12 +227,19 @@ namespace Myrmutation.Ants
         {
             if (roomText != null)
                 roomText.text = ant.IsQueen ? "" : $"Sala: {RoomName(ant.AssignedRoom, "ninguna")}";
-            if (stateText != null) stateText.text = DescribeState();
+            if (stateText != null) stateText.text = DescribeState(ant);
         }
 
-        /// <summary>Qué está haciendo, en palabras del jugador.</summary>
-        private string DescribeState()
+        /// <summary>
+        /// Qué está haciendo una hormiga, en palabras del jugador ("Trabajando en Hongos", "Excavando"…).
+        /// Pública y estática para que otras pantallas (E17: lista de hormigas) enseñen exactamente el mismo texto.
+        /// </summary>
+        public static string DescribeState(Ant ant)
         {
+            if (ant == null) return "";
+            var needs = ant.GetComponent<AntNeeds>();
+            var brain = ant.GetComponent<AntBrain>();
+            var actuator = ant.GetComponent<AntActuator>();
             if (ant.IsQueen) return needs != null && needs.IsResting ? "Descansando" : "Gobernando la colonia";
             if (brain == null) return actuator != null ? actuator.Current.ToString() : "";
             if (brain.IsSuspended) return "Ocupada";

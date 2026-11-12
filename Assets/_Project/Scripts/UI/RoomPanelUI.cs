@@ -27,7 +27,7 @@ namespace Myrmutation.UI
     /// Si toca una hormiga, gana la hormiga (se abre su panel). Mientras el panel de hormiga está
     /// eligiendo sala en el mapa ("Asignar a sala"), tocar una sala no abre este panel.
     /// La Sala del Festín abre su propio menú (C9) si está en la escena, así que este panel no se abre ahí.
-    /// E14 puede abrirlo con RoomPanelUI.Instance.Open(sala).
+    /// Tocar el icono de estado de una sala (E14, RoomStatusIcon) también lo abre, aunque haya hormigas debajo.
     ///
     /// TODA la interfaz se crea por código al arrancar (como AntListUI): el prefab es un objeto vacío a
     /// pantalla completa con este script, dentro del Canvas del HUD.
@@ -170,6 +170,14 @@ namespace Myrmutation.UI
             if (panel == null || CameraController.ToolMode) return;
             var sel = AntSelection.Instance;
             if (wasPickingRoom || (sel != null && sel.IsPickingRoom)) return;   // el panel de hormiga está eligiendo sala
+
+            // E14: el icono de estado gana a la sala y a las hormigas (puede sobresalir de la huella).
+            if (RoomStatusIcon.TryGetRoomAt(world, out var iconRoom))
+            {
+                if (!IsOpen || iconRoom != room) Open(iconRoom);
+                return;
+            }
+
             if (sel != null && sel.AntsAt(world).Count > 0) return;            // gana la hormiga: su panel cierra este
 
             var target = RoomSpawner.RoomAt(world);
@@ -205,8 +213,14 @@ namespace Myrmutation.UI
             productionText.gameObject.SetActive(producer);
             if (producer) productionText.text = ProductionLine(prod, room, data.type);
 
-            statusText.gameObject.SetActive(prod != null && !royal);
-            if (prod != null && !royal)
+            bool access = RoomStatusIcon.HasAccess(room);   // E14
+            statusText.gameObject.SetActive(!access || (prod != null && !royal));
+            if (!access)
+            {
+                statusText.text = "Estado: Sin acceso";
+                statusText.color = warningColor;
+            }
+            else if (prod != null && !royal)
             {
                 var status = prod.GetStatus(room);
                 statusText.text = "Estado: " + ColonyProduction.Describe(status, data.type);

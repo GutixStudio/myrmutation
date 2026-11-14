@@ -143,12 +143,14 @@ namespace Myrmutation.Economy
             {
                 var gm = GameManager.Instance;
                 if (gm == null) return 0;
-                if (gm.CurrentSeason == Season.Winter) return 0;
 
+                // Se calcula con el día y no con CurrentSeason: GameManager publica DayPassed antes de cambiar
+                // de estación, y en ese momento CurrentSeason aún es la anterior (D9 avisa justo en DayPassed).
                 int dps = DaysPerSeason;
-                int dayInSeason = (gm.Day - 1) % dps;                    // 0..dps-1
-                int seasonsLeft = (int)Season.Winter - (int)gm.CurrentSeason;
-                return (dps - dayInSeason) + (seasonsLeft - 1) * dps;
+                int seasonIndex = (gm.Day - 1) / dps;                    // 0 primavera, 1 verano, 2 otoño, 3 invierno…
+                if (seasonIndex % 4 == (int)Season.Winter) return 0;
+                int winterStartDay = ((seasonIndex / 4) * 4 + (int)Season.Winter) * dps + 1;
+                return winterStartDay - gm.Day;
             }
         }
 
@@ -166,13 +168,48 @@ namespace Myrmutation.Economy
         // ---------- Previsión de invierno ----------
 
         /// <summary>Comida por hormiga y día que cobra D3 en invierno (mantenimiento).</summary>
-        public int WinterUpkeepPerAnt
+        public int WinterUpkeepPerAnt => UpkeepPerAnt(Season.Winter);
+
+        /// <summary>Comida por hormiga y día que cobra D3 en una estación (mantenimiento).</summary>
+        public int UpkeepPerAnt(Season season)
+        {
+            var perSeason = ReadPrivate<int[]>(SeasonRules.Instance, "foodPerAntPerDay", null);
+            int i = (int)season;
+            if (perSeason != null && i < perSeason.Length) return perSeason[i];
+            return season == Season.Winter ? fallbackWinterUpkeepPerAnt : 0;
+        }
+
+        /// <summary>
+        /// Comida que gastaría la población actual en un día de esa estación:
+        /// mantenimiento de D3 + (opcional) lo que comen según su hambre.
+        /// </summary>
+        public float DailyConsumption(Season season)
+        {
+            bool queenPays = ReadPrivate(SeasonRules.Instance, "queenPaysUpkeep", true);
+            int upkeep = UpkeepPerAnt(season);
+            float spd = SecondsPerDay;
+            float total = 0f;
+
+            foreach (var ant in AllAnts())
+            {
+                if (queenPays || !ant.IsQueen) total += upkeep;
+                if (includeMeals) total += MealsPerDay(ant, spd);
+            }
+            return total;
+        }
+
+        /// <summary>Comida que gasta la población actual en un día de la estación actual (D9: aviso de comida baja).</summary>
+        public float CurrentDailyConsumption =>
+            DailyConsumption(GameManager.Instance != null ? GameManager.Instance.CurrentSeason : Season.Spring);
+
+        /// <summary>Días que aguanta la comida actual al ritmo de la estación actual (∞ si no hay consumo).</summary>
+        public float DaysCovered
         {
             get
             {
-                var perSeason = ReadPrivate<int[]>(SeasonRules.Instance, "foodPerAntPerDay", null);
-                int i = (int)Season.Winter;
-                return perSeason != null && i < perSeason.Length ? perSeason[i] : fallbackWinterUpkeepPerAnt;
+                float daily = CurrentDailyConsumption;
+                int food = ResourceManager.Instance != null ? ResourceManager.Instance.Get(ResourceType.Food) : 0;
+                return daily <= 0f ? float.PositiveInfinity : food / daily;
             }
         }
 
@@ -180,23 +217,7 @@ namespace Myrmutation.Economy
         /// Comida que gastaría la población actual en un día de invierno:
         /// mantenimiento de D3 + (opcional) lo que comen según su hambre.
         /// </summary>
-        public float WinterDailyConsumption
-        {
-            get
-            {
-                bool queenPays = ReadPrivate(SeasonRules.Instance, "queenPaysUpkeep", true);
-                int upkeep = WinterUpkeepPerAnt;
-                float spd = SecondsPerDay;
-                float total = 0f;
-
-                foreach (var ant in AllAnts())
-                {
-                    if (queenPays || !ant.IsQueen) total += upkeep;
-                    if (includeMeals) total += MealsPerDay(ant, spd);
-                }
-                return total;
-            }
-        }
+        public float WinterDailyConsumption => DailyConsumption(Season.Winter);
 
         /// <summary>Días de invierno que aguanta la comida actual con la población actual (∞ si no hay consumo).</summary>
         public float WinterDaysCovered

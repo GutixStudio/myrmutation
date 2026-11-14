@@ -140,7 +140,7 @@ namespace Myrmutation.UI
         {
             if (!logBirths || e.Ant == null) return;
             if (Time.unscaledTime - startTime < ignoreBirthsAtStart) return;
-            string caste = e.Ant.IsQueen ? "reina" : e.Ant.Caste != null ? e.Ant.Caste.displayName.ToLower() : null;
+            string caste = e.Ant.IsQueen ? "reina" : e.Ant.Caste != null ? e.Ant.Caste.displayName : null;   // D9: "Ha nacido Rubí (Menor)"
             Add(LogCategory.Nacimiento,
                 caste != null ? $"Ha nacido {e.Ant.Name} ({caste})" : $"Ha nacido {e.Ant.Name}",
                 e.Ant.transform);
@@ -189,16 +189,24 @@ namespace Myrmutation.UI
         {
             if (!logExpeditions) return;
             int n = e.Ants != null ? e.Ants.Count : 0;
-            Add(LogCategory.Expedicion, n == 1 ? "Sale una expedición de 1 hormiga" : $"Sale una expedición de {n} hormigas");
+            Add(LogCategory.Expedicion, n == 1 ? "Sale 1 obrera de expedición" : $"Salen {n} obreras de expedición");
         }
 
         private void OnExpeditionReturned(ExpeditionReturned e)
         {
             if (!logExpeditions) return;
             Transform focus = e.Ants != null && e.Ants.Count > 0 && e.Ants[0] != null ? e.Ants[0].transform : null;
-            if (e.Prey != null) Add(LogCategory.Expedicion, $"Vuelve la expedición con una presa: {e.Prey.displayName}", focus);
-            else if (e.Leaves > 0) Add(LogCategory.Expedicion, $"Vuelve la expedición con {e.Leaves} hojas", focus);
-            else Add(LogCategory.Expedicion, "Vuelve la expedición con las manos vacías", focus);
+
+            // D9: "3 obreras vuelven con 11 hojas y una presa"
+            int n = e.Ants != null ? e.Ants.Count : 0;
+            string who = n == 1 ? "1 obrera vuelve" : $"{n} obreras vuelven";
+            string leaves = e.Leaves == 1 ? "1 hoja" : $"{e.Leaves} hojas";
+            string loot;
+            if (e.Leaves > 0 && e.Prey != null) loot = $"{leaves} y una presa ({e.Prey.displayName})";
+            else if (e.Prey != null) loot = $"una presa ({e.Prey.displayName})";
+            else if (e.Leaves > 0) loot = leaves;
+            else loot = null;
+            Add(LogCategory.Expedicion, loot != null ? $"{who} con {loot}" : $"{who} con las manos vacías", focus);
         }
 
         private void OnAntMutated(AntMutated e)

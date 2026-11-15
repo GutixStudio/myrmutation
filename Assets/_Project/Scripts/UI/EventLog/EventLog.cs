@@ -197,13 +197,22 @@ namespace Myrmutation.UI
             if (!logExpeditions) return;
             Transform focus = e.Ants != null && e.Ants.Count > 0 && e.Ants[0] != null ? e.Ants[0].transform : null;
 
-            // D9: "3 obreras vuelven con 11 hojas y una presa"
+            // D9: "3 obreras vuelven con 11 hojas y una presa" · D10: puede haber varias presas
             int n = e.Ants != null ? e.Ants.Count : 0;
             string who = n == 1 ? "1 obrera vuelve" : $"{n} obreras vuelven";
             string leaves = e.Leaves == 1 ? "1 hoja" : $"{e.Leaves} hojas";
+            int preyCount = e.Preys != null ? e.Preys.Count : e.Prey != null ? 1 : 0;
+            string prey = null;
+            if (preyCount == 1) prey = $"una presa ({e.Prey.displayName})";
+            else if (preyCount > 1)
+            {
+                var names = new System.Collections.Generic.List<string>();
+                foreach (var p in e.Preys) if (p != null) names.Add(p.displayName);
+                prey = $"{preyCount} presas ({string.Join(", ", names)})";
+            }
             string loot;
-            if (e.Leaves > 0 && e.Prey != null) loot = $"{leaves} y una presa ({e.Prey.displayName})";
-            else if (e.Prey != null) loot = $"una presa ({e.Prey.displayName})";
+            if (e.Leaves > 0 && prey != null) loot = $"{leaves} y {prey}";
+            else if (prey != null) loot = prey;
             else if (e.Leaves > 0) loot = leaves;
             else loot = null;
             Add(LogCategory.Expedicion, loot != null ? $"{who} con {loot}" : $"{who} con las manos vacías", focus);

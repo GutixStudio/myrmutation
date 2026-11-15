@@ -192,6 +192,7 @@ namespace Myrmutation.UI
         {
             if (panel == null) return;
             panel.SetActive(true);
+            transform.SetAsLastSibling();   // Montaje: por encima del resto del HUD (pestaña Hormigas, paneles)
             RefreshFilterColors();
             RebuildList();
         }

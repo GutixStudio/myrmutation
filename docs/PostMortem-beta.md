@@ -5,7 +5,7 @@ Entrega: 15 de noviembre de 2026
 
 ## 1. Trabajo colectivo
 
-La beta se planificó en dos sprints (Beta 1: 14–20 de octubre; Beta 2: 21–27 de octubre) a partir de las lecciones de la alfa. El cambio principal ha sido la construcción: las zonas fijas se han sustituido por un hormiguero que se excava casilla a casilla, con modo Construcción, salas con puertas laterales y una superficie por la que salen y vuelven las expediciones. Además se han añadido el registro de sucesos, las estadísticas de la colonia, los paneles de sala y de hormigas, el menú del Festín y las expediciones de tamaño libre. Desde la alfa se han fusionado en `develop` 33 pull requests de código (de la #116 a la #153), más la de la documentación de esta entrega (GDD v0.3.1 y post mortem).
+La beta se planificó en dos sprints (Beta 1: 14–20 de octubre; Beta 2: 21–27 de octubre) a partir de las lecciones de la alfa. El cambio principal ha sido la construcción: las zonas fijas se han sustituido por un hormiguero que se excava casilla a casilla, con modo Construcción, salas con puertas laterales y una superficie por la que salen y vuelven las expediciones. Además se han añadido el registro de sucesos, las estadísticas de la colonia, los paneles de sala y de hormigas, el menú del Festín y las expediciones de tamaño libre. Desde la alfa se han fusionado en `develop` 34 pull requests de código (de la #116 a la #154), además de las de la documentación de esta entrega (GDD v0.3.1 y post mortem).
 
 ### Lo que ha funcionado
 

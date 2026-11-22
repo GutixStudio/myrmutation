@@ -6,13 +6,13 @@ Proyecto de **Gutix (GutixStudio)** para *Juegos para Web y Redes Sociales* · G
 
 | | |
 |---|---|
-| Versión actual | **v0.1-alpha** (entrega Alfa) |
+| Versión actual | **v0.2-beta** (entrega Beta) |
 | Motor | Unity **6000.0.57f1** LTS · URP 2D · Input System |
 | Plataforma | WebGL (Chrome y Firefox · PC, tablet y móvil) |
 | Diseño | [GDD](docs/GDD.md) · [IA de las hormigas](docs/IA_Hormigas.md) |
 | Enlaces | [docs/enlaces.txt](docs/enlaces.txt) |
 
-## Cómo jugar (alfa)
+## Cómo jugar (beta)
 - **Cámara:** arrastrar para moverla · rueda o pellizco para el zoom.
 - **Construir:** tocar una zona vacía → elegir sala (hacen falta obreras libres).
 - **Hormigas:** tocar una para ver su panel → *Asignar a sala*, *Devorar*, *Comer presa*, *Apuntar a expedición*.

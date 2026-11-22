@@ -6,8 +6,8 @@ using UnityEngine.UI;
 namespace Myrmutation.Expedition
 {
     /// <summary>
-    /// Panel de expedición (D4): elegir 1–3 hormigas con − / +, botón "Enviar expedición",
-    /// estado (disponible / fuera / invierno) y aviso de lo que han traído.
+    /// Panel de expedición (D4): elegir cuántas hormigas van con − / + (D10: de 1 a todas las disponibles),
+    /// botón "Enviar expedición", estado (disponible con la estimación del botín / fuera / invierno) y aviso de lo que han traído.
     /// Todas las referencias son opcionales salvo sendButton. Va en un Canvas (prefab ExpeditionPanel).
     /// </summary>
     public class ExpeditionUI : MonoBehaviour
@@ -23,7 +23,7 @@ namespace Myrmutation.Expedition
         [SerializeField] private TMP_Text sendButtonText;
 
         [Header("Estado")]
-        [Tooltip("Disponible / Fuera: 12 s / motivo por el que no se puede")]
+        [Tooltip("En casa · ~18–24 hojas · 45 % presa / Fuera: 12 s / motivo por el que no se puede")]
         [SerializeField] private TMP_Text statusText;
         [Tooltip("Opcional: obreras disponibles y apuntadas")]
         [SerializeField] private TMP_Text infoText;
@@ -46,7 +46,7 @@ namespace Myrmutation.Expedition
 
         private void Awake()
         {
-            count = Mathf.Clamp(startCount, ExpeditionSystem.MinGroup, ExpeditionSystem.MaxGroup);
+            count = Mathf.Max(ExpeditionSystem.MinGroup, startCount);
             if (minusButton != null) minusButton.onClick.AddListener(() => ChangeCount(-1));
             if (plusButton != null) plusButton.onClick.AddListener(() => ChangeCount(+1));
             if (sendButton != null) sendButton.onClick.AddListener(OnSendClicked);
@@ -85,7 +85,7 @@ namespace Myrmutation.Expedition
 
         private void ChangeCount(int delta)
         {
-            count = Mathf.Clamp(count + delta, ExpeditionSystem.MinGroup, ExpeditionSystem.MaxGroup);
+            count = Mathf.Clamp(count + delta, ExpeditionSystem.MinGroup, MaxCount);
             Refresh();
         }
 
@@ -94,11 +94,15 @@ namespace Myrmutation.Expedition
             if (Sys != null && Sys.Send(count)) Refresh();
         }
 
+        /// <summary>D10: como mucho, todas las disponibles (mientras hay una fuera no se baja el número elegido).</summary>
+        private int MaxCount => Sys == null ? ExpeditionSystem.MinGroup : Sys.IsAway ? Mathf.Max(count, Sys.MaxGroupNow) : Sys.MaxGroupNow;
+
         private void Refresh()
         {
+            if (Sys != null) count = Mathf.Clamp(count, ExpeditionSystem.MinGroup, MaxCount);   // si nacen o mueren obreras
             if (countText != null) countText.text = count.ToString();
             if (minusButton != null) minusButton.interactable = count > ExpeditionSystem.MinGroup;
-            if (plusButton != null) plusButton.interactable = count < ExpeditionSystem.MaxGroup;
+            if (plusButton != null) plusButton.interactable = count < MaxCount;
 
             if (Sys == null)
             {
@@ -115,7 +119,7 @@ namespace Myrmutation.Expedition
             {
                 if (Sys.IsAway) statusText.text = $"Fuera ({Sys.AntsAway.Count}): vuelve en {Mathf.CeilToInt(Sys.TimeLeft)} s";
                 else if (!canSend) statusText.text = reason;
-                else statusText.text = $"En casa · {Mathf.RoundToInt(Sys.PreyChance(count) * 100f)} % de traer presa";
+                else statusText.text = $"En casa · {Sys.Estimate(count)}";   // D10: "~18–24 hojas · 45 % presa"
             }
 
             var bar = progressBar != null ? progressBar : progressFill != null ? progressFill.gameObject : null;
@@ -133,9 +137,11 @@ namespace Myrmutation.Expedition
         {
             Refresh();
             if (resultText == null) return;
-            resultText.text = e.Prey != null
-                ? $"¡La expedición vuelve con una presa: {e.Prey.displayName}!"
-                : $"La expedición vuelve con {e.Leaves} hojas";
+            int preys = e.Preys != null ? e.Preys.Count : 0;
+            string leaves = e.Leaves == 1 ? "1 hoja" : $"{e.Leaves} hojas";
+            resultText.text = preys == 0 ? $"La expedición vuelve con {leaves}"
+                : preys == 1 ? $"¡La expedición vuelve con {leaves} y una presa: {e.Prey.displayName}!"
+                : $"¡La expedición vuelve con {leaves} y {preys} presas!";
             resultText.gameObject.SetActive(true);
             resultTimer = resultSeconds;
         }

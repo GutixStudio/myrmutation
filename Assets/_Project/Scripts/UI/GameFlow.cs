@@ -1,5 +1,6 @@
 using System.Collections;
 using Myrmutation.Core;
+using Myrmutation.Expedition;
 using UnityEngine;
 
 namespace Myrmutation.UI
@@ -36,9 +37,18 @@ namespace Myrmutation.UI
             RunSummary.Result = e.State;
             RunSummary.Day = gm != null ? gm.Day : 0;
             RunSummary.Season = gm != null ? gm.CurrentSeason : Season.Spring;
-            RunSummary.AntsAlive = Ant.All.Count;
+            RunSummary.AntsAlive = CountWorkers();
             RunSummary.Biomass = ResourceManager.Instance != null ? ResourceManager.Instance.Get(ResourceType.Biomass) : 0;
             StartCoroutine(GoToGameOver());
+        }
+
+        // Obreras vivas, sin la reina y contando las que están de expedición (desactivadas, fuera de Ant.All).
+        private static int CountWorkers()
+        {
+            int n = 0;
+            foreach (var a in Ant.All) if (a != null && a.IsAlive && !a.IsQueen) n++;
+            var exp = ExpeditionSystem.Instance;
+            return exp != null ? n + exp.AntsAway.Count : n;
         }
 
         private IEnumerator GoToGameOver()

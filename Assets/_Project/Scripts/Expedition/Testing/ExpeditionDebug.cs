@@ -10,7 +10,7 @@ namespace Myrmutation.Expedition.Testing
     /// </summary>
     public class ExpeditionDebug : MonoBehaviour
     {
-        [SerializeField] private Rect area = new Rect(300, 10, 300, 330);
+        [SerializeField] private Rect area = new Rect(300, 10, 300, 400);
         private int count = 1;
 
         private void OnEnable()
@@ -27,7 +27,7 @@ namespace Myrmutation.Expedition.Testing
 
         private void OnSent(ExpeditionSent e) => Debug.Log($"[D4] Enviadas {e.Ants.Count} hormigas · quedan en el nido {Ant.All.Count}");
         private void OnReturned(ExpeditionReturned e) =>
-            Debug.Log($"[D4] Vuelven {e.Ants.Count} · hojas {e.Leaves} · presa {(e.Prey != null ? e.Prey.displayName : "—")} · hormigas en el nido {Ant.All.Count}");
+            Debug.Log($"[D4] Vuelven {e.Ants.Count} · hojas {e.Leaves} · presas {e.Preys.Count}{(e.Prey != null ? $" ({e.Prey.displayName}…)" : "")} · hormigas en el nido {Ant.All.Count}");
 
         private void OnGUI()
         {
@@ -44,11 +44,17 @@ namespace Myrmutation.Expedition.Testing
             GUILayout.Label(sys.IsAway ? $"Fuera ({sys.AntsAway.Count}): {sys.TimeLeft:0.0} s" : "En casa");
             GUILayout.Label($"Hojas: {Get(ResourceType.Leaves)} · Presas: {sys.PreyCount}");
 
+            // D10: de 1 a todas las disponibles
+            if (!sys.IsAway) count = Mathf.Clamp(count, ExpeditionSystem.MinGroup, sys.MaxGroupNow);
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("−")) count = Mathf.Max(ExpeditionSystem.MinGroup, count - 1);
-            GUILayout.Label($"  {count}  ({sys.PreyChance(count):P0} presa)");
-            if (GUILayout.Button("+")) count = Mathf.Min(ExpeditionSystem.MaxGroup, count + 1);
+            GUILayout.Label($"  {count}  ");
+            if (GUILayout.Button("+")) count = Mathf.Min(sys.MaxGroupNow, count + 1);
+            if (GUILayout.Button("Todas")) count = sys.MaxGroupNow;
             GUILayout.EndHorizontal();
+            var est = sys.Estimate(count);
+            GUILayout.Label(est.ToString());
+            GUILayout.Label($"carga {est.Carry:0.#} · fuerza {est.Strength:0.#} · presas de media {est.ExpectedPrey:0.00}");
 
             GUI.enabled = sys.CanSend(count, out var reason);
             if (GUILayout.Button("Enviar expedición")) sys.Send(count);

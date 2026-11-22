@@ -18,6 +18,8 @@ MonoBehaviour:
     las alimentes, nacer\xE1n Menores, Medias o Mayores."
   sprite: {fileID: -5961869380073128628, guid: eeecbf4415b64f843b1187b5c7c6965e, type: 3}
   icon: {fileID: 0}
-  minWorkers: 2
+  buildable: 1
   workCost: 30
+  footprint: {x: 21, y: 12}
+  prefab: {fileID: 5111514737981938095, guid: 295e8dc26f4258f4eae7d044bed62a80, type: 3}
   workerCapacity: 4

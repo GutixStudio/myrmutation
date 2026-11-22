@@ -18,6 +18,8 @@ MonoBehaviour:
     el hambre aprieta."
   sprite: {fileID: 8317957962518768412, guid: 56cac649831c88e44b33a4234850b4fd, type: 3}
   icon: {fileID: 0}
-  minWorkers: 2
+  buildable: 1
   workCost: 20
+  footprint: {x: 21, y: 12}
+  prefab: {fileID: 7558204806038971389, guid: d9a4dee8ec472c548a3d88247e789f22, type: 3}
   workerCapacity: 4

@@ -18,7 +18,7 @@ namespace Myrmutation.Ants
     ///  · Hueco de acciones: botones que añaden otros sistemas con AntPanelAction.Register (C: Devorar).
     ///
     /// Los botones de genes, salas y acciones se crean duplicando una plantilla desactivada,
-    /// igual que BuildMenuUI.
+    /// igual que BuildModeUI.
     /// </summary>
     public class AntPanelUI : MonoBehaviour
     {
@@ -39,6 +39,8 @@ namespace Myrmutation.Ants
         [SerializeField] private Image geneIconTemplate;
         [Tooltip("Opcional: texto que se muestra si no tiene genes")]
         [SerializeField] private GameObject noGenesLabel;
+        [Tooltip("Opcional: texto donde se muestra el efecto del gen al tocar su icono")]
+        [SerializeField] private TMP_Text geneInfoText;
 
         [Header("Necesidades (Image con Image Type = Filled)")]
         [SerializeField] private Image hungerFill;
@@ -63,6 +65,12 @@ namespace Myrmutation.Ants
         [Tooltip("Botón plantilla (desactivado) que se duplica por cada acción registrada")]
         [SerializeField] private Button actionButtonTemplate;
 
+        [Header("Móvil (px en la resolución de referencia 1920×1080, mínimos de E11)")]
+        [Tooltip("Tamaño mínimo de todos los textos del panel")]
+        [SerializeField] private float minFontSize = 32f;
+        [Tooltip("Alto mínimo de todo lo que se toca (botones, iconos de gen)")]
+        [SerializeField] private float minTouchSize = 88f;
+
         private Ant ant;
         private AntNeeds needs;
         private AntBrain brain;
@@ -78,6 +86,9 @@ namespace Myrmutation.Ants
 
         private void Awake()
         {
+            // Antes de duplicar nada: así las plantillas (y todo lo que se cree a partir de ellas) ya cumplen.
+            EnforceMobileSizes();
+
             if (panel != null) panel.SetActive(false);
             if (roomListPanel != null) roomListPanel.SetActive(false);
             if (geneIconTemplate != null) geneIconTemplate.gameObject.SetActive(false);
@@ -114,6 +125,48 @@ namespace Myrmutation.Ants
             slowTimer = 0.5f;
             RefreshGenesIfChanged();
             RefreshActionVisibility();
+        }
+
+        // ================= MÓVIL (E15) =================
+
+        /// <summary>
+        /// Aplica los mínimos de E11 a todo el panel (también a lo desactivado y a las plantillas):
+        /// textos de al menos minFontSize y elementos táctiles de al menos minTouchSize de alto.
+        /// Si un contenedor (Header, Actions…) tenía una altura fija menor, también se agranda.
+        /// </summary>
+        private void EnforceMobileSizes()
+        {
+            foreach (var t in GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (t.enableAutoSizing) t.fontSizeMin = Mathf.Max(t.fontSizeMin, minFontSize);
+                if (t.fontSize < minFontSize) t.fontSize = minFontSize;
+            }
+
+            foreach (var b in GetComponentsInChildren<Button>(true))
+                EnsureTouchHeight(b.gameObject, false);
+
+            // Los iconos de gen se convierten en botones al mostrarse: la plantilla ya sale grande.
+            if (geneIconTemplate != null) EnsureTouchHeight(geneIconTemplate.gameObject, true);
+        }
+
+        private void EnsureTouchHeight(GameObject go, bool square)
+        {
+            var le = go.GetComponent<LayoutElement>();
+            if (le == null) le = go.AddComponent<LayoutElement>();
+            le.minHeight = Mathf.Max(le.minHeight, minTouchSize);
+            if (le.preferredHeight > 0f && le.preferredHeight < minTouchSize) le.preferredHeight = minTouchSize;
+            if (square)
+            {
+                le.minWidth = Mathf.Max(le.minWidth, minTouchSize);
+                if (le.preferredWidth > 0f && le.preferredWidth < minTouchSize) le.preferredWidth = minTouchSize;
+            }
+
+            // El contenedor directo (fila de cabecera, de acciones, de genes…) no puede ser más bajo.
+            var parent = go.transform.parent;
+            if (parent == null) return;
+            var ple = parent.GetComponent<LayoutElement>();
+            if (ple != null && ple.preferredHeight > 0f && ple.preferredHeight < minTouchSize)
+                ple.preferredHeight = minTouchSize;
         }
 
         // ================= ABRIR / CERRAR =================
@@ -174,12 +227,19 @@ namespace Myrmutation.Ants
         {
             if (roomText != null)
                 roomText.text = ant.IsQueen ? "" : $"Sala: {RoomName(ant.AssignedRoom, "ninguna")}";
-            if (stateText != null) stateText.text = DescribeState();
+            if (stateText != null) stateText.text = DescribeState(ant);
         }
 
-        /// <summary>Qué está haciendo, en palabras del jugador.</summary>
-        private string DescribeState()
+        /// <summary>
+        /// Qué está haciendo una hormiga, en palabras del jugador ("Trabajando en Hongos", "Excavando"…).
+        /// Pública y estática para que otras pantallas (E17: lista de hormigas) enseñen exactamente el mismo texto.
+        /// </summary>
+        public static string DescribeState(Ant ant)
         {
+            if (ant == null) return "";
+            var needs = ant.GetComponent<AntNeeds>();
+            var brain = ant.GetComponent<AntBrain>();
+            var actuator = ant.GetComponent<AntActuator>();
             if (ant.IsQueen) return needs != null && needs.IsResting ? "Descansando" : "Gobernando la colonia";
             if (brain == null) return actuator != null ? actuator.Current.ToString() : "";
             if (brain.IsSuspended) return "Ocupada";
@@ -192,6 +252,13 @@ namespace Myrmutation.Ants
                 case BrainGoal.Rest:
                     if (needs != null && needs.IsExhausted && brain.Step == BrainStep.Acting) return "Agotada: descansando";
                     return brain.Step == BrainStep.Acting ? "Descansando" : "Yendo a descansar";
+                case BrainGoal.Dig:
+                    if (brain.Step == BrainStep.Acting) return "Excavando";
+                    if (brain.Step == BrainStep.Moving) return "Yendo a excavar";
+                    return "Buscando dónde excavar";
+                case BrainGoal.Idle:
+                    if (brain.Step == BrainStep.Moving) return "Sin trabajo: paseando";
+                    return "Sin trabajo: esperando";
                 default:
                     if (ant.AssignedRoom == null) return "Sin sala asignada";
                     if (brain.Step == BrainStep.Acting) return ant.AssignedRoom.IsBuilt ? $"Trabajando en {room}" : $"Construyendo {room}";
@@ -215,6 +282,7 @@ namespace Myrmutation.Ants
             geneIcons.Clear();
             shownGenes.Clear();
             shownGenes.AddRange(ant.Genes);
+            if (geneInfoText != null) geneInfoText.text = "";
 
             if (geneIconTemplate != null && geneContainer != null)
                 foreach (var gene in ant.Genes)
@@ -227,10 +295,23 @@ namespace Myrmutation.Ants
                     else icon.color = gene.tint;   // sin icono: un cuadro del color del gen
                     var label = icon.GetComponentInChildren<TMP_Text>(true);   // opcional: nombre bajo el icono
                     if (label != null) label.text = gene.displayName;
+                    var button = icon.GetComponent<Button>();
+                    if (button == null) button = icon.gameObject.AddComponent<Button>();
+                    button.targetGraphic = icon;
+                    var shownGene = gene;
+                    button.onClick.AddListener(() => ShowGeneInfo(shownGene));
                     geneIcons.Add(icon.gameObject);
                 }
 
             if (noGenesLabel != null) noGenesLabel.SetActive(geneIcons.Count == 0);
+        }
+
+        private void ShowGeneInfo(GeneData gene)
+        {
+            if (geneInfoText == null || gene == null) return;
+            geneInfoText.text = string.IsNullOrEmpty(gene.shortEffect)
+                ? gene.displayName
+                : gene.displayName + ": " + gene.shortEffect;
         }
 
         // ================= ASIGNAR A SALA =================

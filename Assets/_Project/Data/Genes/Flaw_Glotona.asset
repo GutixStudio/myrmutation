@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: Glotona
   description: "Nunca tiene suficiente: el hambre sube el doble de r\xE1pido y come
     doble raci\xF3n."
+  shortEffect: "+100 % hambre, come doble raci\xF3n"
   origin: "Mutaci\xF3n fallida"
   icon: {fileID: -2413806693520163455, guid: eef381840531c714282c333330c32e1b, type: 3}
   isFlaw: 1

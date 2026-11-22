@@ -14,8 +14,8 @@ namespace Myrmutation.Ants
     ///  · Modo "elegir sala": mientras está activo (lo abre el panel al pulsar Asignar), tocar
     ///    una sala del mapa la elige en vez de cambiar la selección.
     ///
-    /// No usa colliders en las hormigas: busca la más cercana al punto tocado. Así no bloquea
-    /// los toques sobre las zonas de construcción (BuildZone.At usa el primer collider).
+    /// No usa colliders en las hormigas: busca la más cercana al punto tocado. La sala tocada
+    /// sale de su huella en la rejilla (RoomSpawner.RoomAt).
     /// Los toques sobre la UI ya los ignora CameraController.
     ///
     /// A5: mide la distancia al DIBUJO de la hormiga (hijo "Visual", que AntSpread desplaza) y no a
@@ -109,13 +109,6 @@ namespace Myrmutation.Ants
             cancelled?.Invoke();
         }
 
-        /// <summary>Hormiga viva más cercana a un punto del mundo, dentro de pickRadius (o null).</summary>
-        public Ant FindAntAt(Vector2 world)
-        {
-            var list = AntsAt(world);
-            return list.Count > 0 ? list[0] : null;
-        }
-
         /// <summary>Hormigas vivas dentro de pickRadius, de la más cercana a la más lejana.</summary>
         public List<Ant> AntsAt(Vector2 world)
         {
@@ -158,13 +151,13 @@ namespace Myrmutation.Ants
         {
             if (IsPickingRoom)
             {
-                var zone = BuildZone.At(world);
-                if (zone != null && zone.Room != null)
+                var room = RoomSpawner.RoomAt(world);
+                if (room != null)
                 {
                     var picked = roomPickCallback;
                     roomPickCallback = null;
                     roomPickCancelled = null;
-                    picked(zone.Room);
+                    picked(room);
                 }
                 else CancelRoomPick();
                 return;

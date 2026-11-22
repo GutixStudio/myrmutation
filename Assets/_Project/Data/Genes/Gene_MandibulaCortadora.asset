@@ -16,6 +16,7 @@ MonoBehaviour:
   displayName: "Mand\xEDbula cortadora"
   description: "Mand\xEDbulas de podadora: un 30 % m\xE1s de fuerza y carga una unidad
     extra."
+  shortEffect: "+30 % fuerza, carga 1 m\xE1s"
   origin: 'Presa: hormiga cortadora de hojas (Atta)'
   icon: {fileID: 7482667652216324306, guid: acf6b8d9f08059d4fa346fa98b0cc1c9, type: 3}
   isFlaw: 0

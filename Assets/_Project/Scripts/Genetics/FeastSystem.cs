@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Myrmutation.Ants;
 using Myrmutation.Core;
@@ -56,9 +55,6 @@ namespace Myrmutation.Genetics
 
         [Header("Debug")]
         [SerializeField] private bool logResults = true;
-
-        
-        public event Action<FeastResult> Devoured;
 
         
         public bool IsChoosingVictim => eater != null;
@@ -122,7 +118,8 @@ namespace Myrmutation.Genetics
 
         private bool CanStartDevour(Ant ant) => ant != null && ant.IsAlive && FeastAvailable;
 
-        private bool FeastAvailable => !requireFeastRoom || Room.FindBuilt(RoomType.Feast) != null;
+        /// <summary>Se puede celebrar un Festín ahora (Require Feast Room). También lo usa "Comer presa".</summary>
+        public bool FeastAvailable =>!requireFeastRoom || Room.FindBuilt(RoomType.Feast) != null;
 
         private void StartDevour(Ant ant)
         {
@@ -211,20 +208,25 @@ namespace Myrmutation.Genetics
             return true;
         }
 
-        
-        public bool DevourPrey(Ant eater, GeneData preyGene)
+
+        public bool DevourPrey(Ant eater, GeneData preyGene) => DevourPrey(eater, preyGene, out _, out _);
+
+        /// <summary>Igual, pero dice qué pasó (el menú del Festín, C9, lo usa para avisar al jugador).</summary>
+        public bool DevourPrey(Ant eater, GeneData preyGene, out FeastOutcome outcome, out GeneData gained)
         {
+            outcome = FeastOutcome.Nothing;
+            gained = null;
             if (eater == null || !eater.IsAlive || eater.IsQueen || !FeastAvailable) return false;
 
             var source = preyGene != null ? new List<GeneData> { preyGene } : new List<GeneData>();
-            var outcome = Mutate(eater, RollDice(prey_Gene, prey_Flaw), source, out var gained);
+            outcome = Mutate(eater, RollDice(prey_Gene, prey_Flaw), source, out gained);
 
             GiveBiomass(preyBiomass);
             Report(new FeastResult(eater, null, outcome, gained, preyBiomass), 0);
             return true;
         }
 
-       
+
 
         private static Roll RollDice(float geneChance, float flawChance)
         {
@@ -275,6 +277,7 @@ namespace Myrmutation.Genetics
 
         private void Report(FeastResult r, int inherited)
         {
+            PostLog(r);
             if (logResults)
             {
                 string who = r.Victim != null ? r.Victim.Name : "una presa";
@@ -288,7 +291,40 @@ namespace Myrmutation.Genetics
                 }
                 Debug.Log($"[Festín] {r.Eater.Name} devora a {who}: {what} (+{r.Biomass} biomasa)");
             }
-            Devoured?.Invoke(r);
         }
+        // ---------- Registro de sucesos (C8) ----------
+
+        private const string FlawColor = "#E6594D";
+
+        //Cuenta el resultado del Festín en el log. La herencia de la reina la cuenta QueenGenome.
+        private static void PostLog(FeastResult r)
+        {
+            string eaterName = r.Eater.IsQueen ? "La reina" : r.Eater.Name;
+            string target = r.Victim != null ? $"a {r.Victim.Name}" : "una presa";
+            string text;
+
+            switch (r.Outcome)
+            {
+                case FeastOutcome.Gene:
+                    text = $"{eaterName} ha devorado {target} → {r.Gene.displayName}{EffectInParentheses(r.Gene)}";
+                    break;
+                case FeastOutcome.Flaw:
+                    text = $"<color={FlawColor}>{eaterName} ha salido {r.Gene.displayName}{EffectAfterColon(r.Gene)}</color>";
+                    break;
+                case FeastOutcome.Nothing:
+                    text = $"{eaterName} ha devorado {target}… y no ha pasado nada";
+                    break;
+                default:
+                    return;   // Inherited: una entrada por gen, desde QueenGenome
+            }
+
+            EventBus.Publish(new LogMessage(LogCategory.Mutacion, text, r.Eater.transform));
+        }
+
+        private static string EffectInParentheses(GeneData g) =>
+            string.IsNullOrEmpty(g.shortEffect) ? "" : $" ({g.shortEffect})";
+
+        private static string EffectAfterColon(GeneData g) =>
+            string.IsNullOrEmpty(g.shortEffect) ? "" : $": {g.shortEffect}";
     }
 }

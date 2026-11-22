@@ -41,12 +41,12 @@ namespace Myrmutation.Expedition.EditorTools
             var rt = (RectTransform)root.transform;
             rt.anchorMin = rt.anchorMax = rt.pivot = Vector2.zero;
             rt.anchoredPosition = new Vector2(20f, 20f);
-            rt.sizeDelta = new Vector2(320f, 0f);
+            rt.sizeDelta = new Vector2(600f, 0f);   // E15: ancho para los tamaños de móvil (A lo usa a 600 en Game)
             AddImage(root, bgSprite, PanelColor, Image.Type.Sliced);
 
             var vlg = root.AddComponent<VerticalLayoutGroup>();
-            vlg.padding = new RectOffset(12, 12, 10, 12);
-            vlg.spacing = 6f;
+            vlg.padding = new RectOffset(20, 20, 16, 20);
+            vlg.spacing = 10f;
             vlg.childAlignment = TextAnchor.UpperCenter;
             vlg.childControlWidth = vlg.childControlHeight = true;
             vlg.childForceExpandWidth = true;
@@ -54,44 +54,47 @@ namespace Myrmutation.Expedition.EditorTools
             root.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             // ---------- Contenido ----------
-            var title = NewText("Title", root.transform, "EXPEDICIÓN", 22, TextAlignmentOptions.Left, FontStyles.Bold);
-            Height(title.gameObject, 28);
+            // E15: tamaños mínimos de E11 (texto ≥ 32, táctil ≥ 88, en 1920×1080).
+            var title = NewText("Title", root.transform, "EXPEDICIÓN", 36, TextAlignmentOptions.Left, FontStyles.Bold);
+            Height(title.gameObject, 48);
 
-            var info = NewText("InfoText", root.transform, "Obreras disponibles: 0 · apuntadas: 0", 16, TextAlignmentOptions.Left);
-            Height(info.gameObject, 22);
+            var info = NewText("InfoText", root.transform, "Obreras disponibles: 0 · apuntadas: 0", 32, TextAlignmentOptions.Left);
+            Height(info.gameObject, 42);
 
-            var status = NewText("StatusText", root.transform, "En casa", 16, TextAlignmentOptions.Left);
-            Height(status.gameObject, 22);
+            var status = NewText("StatusText", root.transform, "En casa", 32, TextAlignmentOptions.Left);
+            Height(status.gameObject, 42);
 
-            var preyCount = NewText("PreyCountText", root.transform, "Presas: 0", 16, TextAlignmentOptions.Left);
-            Height(preyCount.gameObject, 22);
+            var preyCount = NewText("PreyCountText", root.transform, "Presas: 0", 32, TextAlignmentOptions.Left);
+            Height(preyCount.gameObject, 42);
 
             // Fila − 2 +
             var row = NewUI("GroupRow", root.transform);
             var hlg = row.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 6f;
+            hlg.spacing = 12f;
             hlg.childAlignment = TextAnchor.MiddleCenter;
             hlg.childControlWidth = hlg.childControlHeight = true;
             hlg.childForceExpandWidth = false;
             hlg.childForceExpandHeight = true;
-            Height(row, 34);
+            Height(row, 88);
 
             var minus = NewButton("MinusButton", row.transform, "−", ButtonColor, out _);
-            Width(minus.gameObject, 60);
-            var count = NewText("CountText", row.transform, "2", 20, TextAlignmentOptions.Center, FontStyles.Bold);
+            Width(minus.gameObject, 120);
+            minus.GetComponentInChildren<TextMeshProUGUI>().fontSize = 44;
+            var count = NewText("CountText", row.transform, "2", 40, TextAlignmentOptions.Center, FontStyles.Bold);
             count.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
             var plus = NewButton("PlusButton", row.transform, "+", ButtonColor, out _);
-            Width(plus.gameObject, 60);
+            Width(plus.gameObject, 120);
+            plus.GetComponentInChildren<TextMeshProUGUI>().fontSize = 44;
 
             var send = NewButton("SendButton", root.transform, "Enviar expedición", SendColor, out var sendLabel);
             sendLabel.fontStyle = FontStyles.Bold;
             sendLabel.color = new Color(0.12f, 0.08f, 0.04f, 1f);
-            Height(send.gameObject, 40);
+            Height(send.gameObject, 88);
 
             // Barra de progreso (fondo + relleno)
             var bar = NewUI("ProgressBar", root.transform);
             AddImage(bar, uiSprite, BarBackColor, Image.Type.Sliced);
-            Height(bar, 12);
+            Height(bar, 20);
             var fillGo = NewUI("ProgressFill", bar.transform);
             Stretch((RectTransform)fillGo.transform, 2f);
             var fill = AddImage(fillGo, uiSprite, BarFillColor, Image.Type.Filled);
@@ -99,9 +102,9 @@ namespace Myrmutation.Expedition.EditorTools
             fill.fillOrigin = (int)Image.OriginHorizontal.Left;
             fill.fillAmount = 0.5f;
 
-            var result = NewText("ResultText", root.transform, "La expedición vuelve con 8 hojas", 17, TextAlignmentOptions.Center, FontStyles.Bold);
+            var result = NewText("ResultText", root.transform, "La expedición vuelve con 8 hojas", 32, TextAlignmentOptions.Center, FontStyles.Bold);
             result.color = ResultColor;
-            Height(result.gameObject, 44);
+            Height(result.gameObject, 84);
 
             // ---------- Script y referencias ----------
             var ui = root.AddComponent<ExpeditionUI>();
@@ -207,7 +210,7 @@ namespace Myrmutation.Expedition.EditorTools
             var btn = go.AddComponent<Button>();
             btn.targetGraphic = img;
 
-            text = NewText("Text (TMP)", go.transform, label, 18, TextAlignmentOptions.Center);
+            text = NewText("Text (TMP)", go.transform, label, 32, TextAlignmentOptions.Center);
             Stretch((RectTransform)text.transform, 0f);
             return btn;
         }

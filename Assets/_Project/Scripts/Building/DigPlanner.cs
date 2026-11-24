@@ -41,6 +41,8 @@ namespace Myrmutation.Building
         [Header("Reparto")]
         [Tooltip("Segundos (sin escala) entre repartos de bloques a las obreras libres. También se reparte en el frame siguiente si cambia el plano, se termina o cancela un bloque o pide una obrera nueva")]
         [SerializeField] private float assignInterval = 0.5f;
+        [Tooltip("Segundos que se guarda a una obrera el bloque que le ha dado el reparto antes de dárselo a otra. Debe ser mayor que el intervalo de pensar del cerebro (0,3 s)")]
+        [SerializeField] private float offerLifetime = 1f;
         [Tooltip("Progreso del bloque (0–1) a partir del cual se reserva a sus obreras el bloque contiguo del mismo plano, para que sigan con él sin pasar por el reparto")]
         [Range(0f, 1f)]
         [SerializeField] private float lookAheadProgress = 0.75f;
@@ -103,6 +105,8 @@ namespace Myrmutation.Building
         // Reparto: cuándo pidió trabajo por última vez cada obrera libre (sin escala) y qué le guardó el último reparto.
         private readonly Dictionary<Ant, float> askers = new Dictionary<Ant, float>();
         private readonly Dictionary<Ant, Job> offers = new Dictionary<Ant, Job>();
+        private readonly Dictionary<Ant, float> offeredAt = new Dictionary<Ant, float>();   // cuándo se guardó cada oferta (sin escala)
+        private readonly List<Ant> expiredOffers = new List<Ant>();
         private readonly List<Ant> free = new List<Ant>();
         private readonly List<Vector2Int> freeNodes = new List<Vector2Int>();
         private readonly List<Ant> stale = new List<Ant>();
@@ -210,6 +214,7 @@ namespace Myrmutation.Building
             askers[ant] = Time.unscaledTime;
             if (!offers.TryGetValue(ant, out var offer)) return false;
             offers.Remove(ant);
+            offeredAt.Remove(ant);
             if (!offer.Dig.Claim(ant)) return false;   // cancelado o terminado desde el reparto: sigue libre
             askers.Remove(ant);
             working[ant] = offer;
@@ -232,16 +237,31 @@ namespace Myrmutation.Building
             assignDirty = false;
             if (!EnsureBuilt()) return;
 
-            // Las que no han recogido lo suyo dejan de estar libres hasta que vuelvan a pedir: su hueco se reparte de nuevo.
-            foreach (var pair in offers) askers.Remove(pair.Key);
-            offers.Clear();
+            // Las que no han recogido lo suyo a tiempo (offerLifetime) dejan de estar libres hasta que vuelvan a pedir: su
+            // hueco se reparte de nuevo. Las ofertas recientes se respetan: un reparto adelantado porque pide una obrera nueva
+            // (assignDirty) no debe borrarlas, o con dos o más obreras pidiendo a destiempo cada petición quitaría la oferta
+            // de la anterior antes de que la recogiera en su siguiente ciclo y ninguna llegaría a excavar nunca.
+            float now = Time.unscaledTime;
+            expiredOffers.Clear();
+            foreach (var pair in offers)
+            {
+                bool fresh = pair.Key != null && pair.Value != null && !pair.Value.Dig.IsDone &&
+                             offeredAt.TryGetValue(pair.Key, out float at) && now - at <= offerLifetime;
+                if (!fresh) expiredOffers.Add(pair.Key);
+            }
+            for (int i = 0; i < expiredOffers.Count; i++)
+            {
+                askers.Remove(expiredOffers[i]);
+                offers.Remove(expiredOffers[i]);
+                offeredAt.Remove(expiredOffers[i]);
+            }
 
             free.Clear();
             freeNodes.Clear();
             stale.Clear();
-            float now = Time.unscaledTime;
             foreach (var pair in askers)
             {
+                if (offers.ContainsKey(pair.Key)) continue;   // ya tiene un bloque guardado: no se le reparte otro
                 // Sin pedir en dos repartos seguidos: B6 le ha dado otra tarea (o ha muerto).
                 if (pair.Key != null && now - pair.Value <= assignInterval * 2f && navigator.Nearest(pair.Key.transform.position, out var node))
                 {
@@ -258,7 +278,7 @@ namespace Myrmutation.Building
             // Bloques con trabajo: con hueco, o llenos pero con alguna reserva de quien aún no excava (puede cederla).
             for (int i = 0; i < active.Count; i++)
                 if (!active[i].Dig.IsDone)
-                    candidates.Add(new Candidate { Job = active[i], Stand = active[i].Stand, Slots = DigJob.MaxWorkers - active[i].Dig.Workers });
+                    candidates.Add(new Candidate { Job = active[i], Stand = active[i].Stand, Slots = Mathf.Max(0, DigJob.MaxWorkers - active[i].Dig.Workers - PendingOffers(active[i])) });
             for (int i = 0; i < workable.Count; i++)
                 candidates.Add(new Candidate { Chunk = workable[i].chunk, Stand = workable[i].stand, Slots = DigJob.MaxWorkers });
             if (candidates.Count == 0) return;
@@ -300,10 +320,19 @@ namespace Myrmutation.Building
                     if (pick.Slots > 0) pick.Slots--;
                     else { Evict(pick.Yield, pick.Job); pick.Yield = null; }   // la otra reserva, si la hay, en el siguiente reparto
                     offers[free[ba]] = pick.Job;
+                    offeredAt[free[ba]] = now;
                     free[ba] = null;
                 }
                 candidates[bc] = pick;
             }
+        }
+
+        /// <summary>Ofertas guardadas y aún sin recoger para este trabajo (ocupan hueco hasta que caducan).</summary>
+        private int PendingOffers(Job job)
+        {
+            int n = 0;
+            foreach (var pair in offers) if (pair.Value == job) n++;
+            return n;
         }
 
         // ================= PLANOS =================

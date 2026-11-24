@@ -217,6 +217,29 @@ namespace Myrmutation.Ants
             return false;
         }
 
+        // ================= PRUEBAS =================
+
+        /// <summary>
+        /// Solo pruebas y escena de demostración (BehaviourDemo): fija el hambre (0 = saciada, 1 = famélica).
+        /// El cerebro lo percibe en su siguiente ciclo, como si hubiera subido solo.
+        /// </summary>
+        public void SetHungerForTesting(float hunger01)
+        {
+            hunger = Mathf.Clamp01(hunger01);
+            if (!IsStarving) starvingTime = 0f;
+        }
+
+        /// <summary>
+        /// Solo pruebas y escena de demostración (BehaviourDemo): fija la energía (1 = descansada, 0 = agotada).
+        /// Con 0 se activa el cerrojo de agotamiento, igual que si hubiera llegado sola; con 1 se libera.
+        /// </summary>
+        public void SetEnergyForTesting(float energy01)
+        {
+            energy = Mathf.Clamp01(energy01);
+            if (energy <= 0f) exhausted = true;
+            else if (energy >= 1f) exhausted = false;
+        }
+
 #if UNITY_EDITOR
         // Para probar desde el Inspector (botón derecho sobre el componente).
         [ContextMenu("Pruebas/Hambre al máximo")] private void DebugStarve() => hunger = 1f;

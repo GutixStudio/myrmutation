@@ -87,10 +87,12 @@ namespace Myrmutation.Ants
         private float bobTime;
         private float targetAngle;      // giro (grados) que busca el Visual
         private float moveSpeedScale = 1f;   // multiplicador de Speed del trayecto actual (B8)
+        private AntVisual layered;            // B9: si existe, la animación (patas, balanceo, cabeceo) la hace AntVisual a píxel entero
 
         private void Awake()
         {
             ant = GetComponent<Ant>();
+            layered = GetComponent<AntVisual>();
             if (visual != null) visualBasePos = visual.localPosition;
         }
 
@@ -253,7 +255,7 @@ namespace Myrmutation.Ants
         /// <summary>Cabeceo de excavar: levanta la cabeza y la baja de golpe, con un pequeño salto del cuerpo.</summary>
         private void UpdateDig()
         {
-            if (visual == null) return;
+            if (visual == null || layered != null) return;   // B9: el cabeceo lo hace AntVisual moviendo capas
             bobTime += Time.deltaTime * digFrequency * 2f * Mathf.PI;
             float s = Mathf.Sin(bobTime);                       // +1 cabeza arriba · -1 cabeza abajo (golpe)
             visual.localPosition = visualBasePos + Vector3.up * (Mathf.Max(0f, s) * digBobAmplitude);
@@ -319,7 +321,8 @@ namespace Myrmutation.Ants
         /// <summary>Gira el Visual poco a poco hacia targetAngle (horizontal si está parada).</summary>
         private void UpdateRotation()
         {
-            if (visual == null || Current == AntAction.Digging) return;   // al excavar el giro lo lleva UpdateDig
+            // Al excavar el giro lo lleva UpdateDig (salvo con AntVisual, que no gira: cabecea moviendo capas).
+            if (visual == null || (Current == AntAction.Digging && layered == null)) return;
             if (Current != AntAction.Moving && levelWhenStopped) targetAngle = 0f;
 
             float z = visual.localEulerAngles.z;
@@ -330,7 +333,7 @@ namespace Myrmutation.Ants
 
         private void Bob(float speedFactor)
         {
-            if (visual == null) return;
+            if (visual == null || layered != null) return;   // B9: el balanceo lo hace AntVisual a píxel entero
             bobTime += Time.deltaTime * bobFrequency * speedFactor;
             visual.localPosition = visualBasePos + Vector3.up * (Mathf.Abs(Mathf.Sin(bobTime)) * bobAmplitude);
         }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Myrmutation.Ants;
 using Myrmutation.Core;
 using Myrmutation.Core.Data;
 using Myrmutation.Economy;
@@ -171,6 +172,10 @@ namespace Myrmutation.Colony
         public static void ApplyCasteVisual(Ant ant, CasteData caste)
         {
             if (ant == null || caste == null) return;
+
+            // B9: la hormiga por capas cambia de casta con su cabeza y su mandíbula, sin escalar ni teñir el cuerpo.
+            var layered = ant.GetComponent<AntVisual>();
+            if (layered != null) { layered.SetCaste(caste); return; }
 
             var visual = FindChild(ant.transform, "Visual");
             var body = visual != null ? visual : ant.transform;
